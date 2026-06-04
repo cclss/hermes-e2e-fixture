@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEON BLITZ — VS A.I. Tetris</title>
+
+  <!-- 디스플레이/HUD/라벨 글꼴 (tokens.css의 font-family 토큰이 참조) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+</head>
+<body>
+  <!-- 대전 아레나: 좌(플레이어) · 중앙(공유 HUD) · 우(AI) 듀얼 보드 셸.
+       게임 로직/렌더링/이펙트/AI는 이후 grain에서 채운다. -->
+  <main class="versus-arena" aria-label="대전 아레나">
+
+    <!-- ===== 좌: 플레이어 보드 ===== -->
+    <section
+      class="board-frame board-frame--player"
+      aria-label="플레이어 보드"
+    >
+      <header class="board-frame__label">
+        <span class="board-frame__name">PLAYER</span>
+        <span class="board-frame__tag">YOU</span>
+      </header>
+      <div class="board-frame__surface">
+        <!-- 키보드 입력을 받을 플레이 표면. 렌더링은 이후 grain에서. -->
+        <canvas
+          class="board-frame__canvas"
+          width="300"
+          height="600"
+          tabindex="0"
+          role="img"
+          aria-label="플레이어 플레이 필드"
+        ></canvas>
+        <div class="board-frame__overlay" data-slot="player-overlay" hidden></div>
+      </div>
+    </section>
+
+    <!-- ===== 중앙: 공유 HUD ===== -->
+    <section class="hud" aria-label="공유 HUD">
+      <header class="hud__title">
+        <span class="hud__title-main">NEON BLITZ</span>
+        <span class="hud__versus">VS</span>
+        <span class="hud__title-sub">A.I. DUEL</span>
+      </header>
+
+      <!-- 홀드 -->
+      <div class="hud-panel hud-panel--hold">
+        <span class="hud-panel__label">HOLD</span>
+        <div class="hud-panel__body">
+          <div class="piece-slot" data-slot="hold" aria-label="홀드한 조각"></div>
+        </div>
+      </div>
+
+      <!-- 다음 조각 큐 -->
+      <div class="hud-panel hud-panel--next">
+        <span class="hud-panel__label">NEXT</span>
+        <div class="hud-panel__body hud-panel__body--stack">
+          <div class="piece-slot piece-slot--lead" data-slot="next-0" aria-label="다음 조각"></div>
+          <div class="piece-slot" data-slot="next-1"></div>
+          <div class="piece-slot" data-slot="next-2"></div>
+        </div>
+      </div>
+
+      <!-- 콤보 미터 -->
+      <div class="hud-panel hud-panel--combo">
+        <span class="hud-panel__label">COMBO</span>
+        <div class="hud-panel__body hud-panel__body--center">
+          <span class="combo-meter__value" data-slot="combo-value">0</span>
+          <span class="combo-meter__unit">×</span>
+        </div>
+        <div class="combo-meter__track" aria-hidden="true">
+          <span class="combo-meter__fill" data-slot="combo-fill"></span>
+        </div>
+      </div>
+
+      <!-- 공격 게이지 (플레이어 ↔ AI 줄다리기) -->
+      <div class="hud-panel hud-panel--attack">
+        <span class="hud-panel__label">ATTACK</span>
+        <div class="attack-gauge" aria-label="공격 게이지">
+          <span class="attack-gauge__side attack-gauge__side--player" data-slot="attack-player"></span>
+          <span class="attack-gauge__pivot" aria-hidden="true"></span>
+          <span class="attack-gauge__side attack-gauge__side--ai" data-slot="attack-ai"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 우: AI 보드 ===== -->
+    <section
+      class="board-frame board-frame--ai"
+      aria-label="AI 보드"
+    >
+      <header class="board-frame__label">
+        <span class="board-frame__name">A.I.</span>
+        <span class="board-frame__tag">CPU</span>
+      </header>
+      <div class="board-frame__surface">
+        <canvas
+          class="board-frame__canvas"
+          width="300"
+          height="600"
+          role="img"
+          aria-label="AI 플레이 필드"
+        ></canvas>
+        <div class="board-frame__overlay" data-slot="ai-overlay" hidden></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

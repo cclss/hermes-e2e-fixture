@@ -1,0 +1,351 @@
+/* ============================================================================
+ * base.css — charlie-smoke-web-tetris
+ * 대전 레이아웃 셸의 구조 + 스타일. 모든 시각 값(색/타이포/간격/모서리/테두리/
+ * 그림자·글로우/모션)은 tokens.css의 var(--token)으로만 소비한다. 하드코딩 금지.
+ *
+ * 구조 기하값(그리드 트랙 폭, aspect-ratio, breakpoint, z-index 등)은 디자인
+ * 토큰이 아니라 구현 설정값이므로 직접 기술한다(coding 정책의 "구현 설정값" 구분).
+ *
+ * 게임 로직/렌더링 픽셀/이펙트/AI는 이후 grain에서. 이 파일은 레이아웃만 다룬다.
+ * ==========================================================================*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-label);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--text-primary);
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      var(--bg-grad-mid) 0%,
+      var(--bg-grad-end) 38%,
+      var(--bg-grad-start) 100%
+    );
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================================
+ * Component: versus-arena — 듀얼 보드 + 중앙 공유 HUD 레이아웃 셸
+ * ==========================================================================*/
+
+.versus-arena {
+  display: grid;
+  /* 트랙 폭: 보드는 신축, 중앙 HUD는 고정폭대(구조 기하값) */
+  grid-template-columns: minmax(0, 1fr) clamp(13rem, 18vw, 17rem) minmax(0, 1fr);
+  grid-template-areas: "player hud ai";
+  align-items: stretch;
+  gap: var(--space-xl);
+  max-width: 1400px; /* 구조: 최대 캔버스 폭 */
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-xl);
+  min-height: 100vh;
+}
+
+.board-frame--player {
+  grid-area: player;
+}
+.hud {
+  grid-area: hud;
+}
+.board-frame--ai {
+  grid-area: ai;
+}
+
+/* 좁은 화면: 세로 스택 (player → hud → ai). 깨지지 않도록 단일 컬럼. */
+@media (max-width: 920px) {
+  .versus-arena {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "player"
+      "hud"
+      "ai";
+    gap: var(--space-lg);
+    padding: var(--space-lg) var(--space-md);
+  }
+}
+
+/* ============================================================================
+ * Component: board-frame — 플레이어/AI 보드 컨테이너 (네온 프레임 + 플레이 표면)
+ * ==========================================================================*/
+
+.board-frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+  min-width: 0;
+}
+
+.board-frame__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 18rem; /* 구조: 보드 표면 폭과 정렬 */
+  padding: 0 var(--space-2xs);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-size-lg);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-hud);
+}
+
+.board-frame__name {
+  text-shadow: var(--text-glow-hard);
+}
+
+.board-frame__tag {
+  font-family: var(--font-hud);
+  font-size: var(--text-size-xs);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+}
+
+/* 플레이 표면: 10×20 비율 고정(구조 기하값). 네온 프레임은 색/그림자 토큰으로. */
+.board-frame__surface {
+  position: relative;
+  width: 100%;
+  max-width: 18rem; /* 구조: 보드 최대 폭 */
+  aspect-ratio: 1 / 2; /* 구조: 10×20 셀 비율 */
+  background:
+    linear-gradient(var(--grid-line), var(--grid-line)),
+    var(--bg-board);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+  transition:
+    border-color var(--duration-base) var(--ease-out-expo),
+    box-shadow var(--duration-base) var(--ease-out-expo);
+}
+
+/* 플레이어 프레임: primary 강조(마젠타) 네온 */
+.board-frame--player .board-frame__surface {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary); /* glow의 currentColor 소스 */
+  box-shadow: var(--shadow-panel), var(--glow-3);
+}
+
+/* AI 프레임: secondary 강조(시안) 네온 */
+.board-frame--ai .board-frame__surface {
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
+  box-shadow: var(--shadow-panel), var(--glow-3);
+}
+
+.board-frame__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 키보드 포커스: 시안 네온 링 (focus 글로우 토큰) */
+.board-frame__canvas:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-focus);
+}
+
+.board-frame__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================================
+ * Component: hud — 중앙 공유 HUD 컬럼 (제목 + hud-panel 모음)
+ * ==========================================================================*/
+
+.hud {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.hud__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3xs);
+  padding-bottom: var(--space-xs);
+  text-align: center;
+}
+
+.hud__title-main {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-wide);
+  color: var(--accent-secondary);
+  text-shadow: var(--text-glow-hard);
+}
+
+.hud__versus {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-size-display);
+  line-height: var(--line-height-tight);
+  color: var(--accent-primary);
+  text-shadow: var(--text-glow-hard);
+}
+
+.hud__title-sub {
+  font-family: var(--font-hud);
+  font-size: var(--text-size-sm);
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+ * Component: hud-panel — HUD 정보 패널 (hold/next/combo/attack 공용 프레임)
+ * ==========================================================================*/
+
+.hud-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
+  background: var(--bg-panel);
+  border: var(--border-width-thin) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+}
+
+.hud-panel__label {
+  font-family: var(--font-hud);
+  font-size: var(--text-size-xs);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+}
+
+.hud-panel__body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--space-3xl); /* 구조: 미리보기 셀 영역 확보 */
+}
+
+.hud-panel__body--stack {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.hud-panel__body--center {
+  justify-content: center;
+}
+
+/* 조각 미리보기 슬롯 (hold/next placeholder — 렌더링은 이후 grain) */
+.piece-slot {
+  width: var(--space-2xl);
+  height: var(--space-2xl);
+  background: var(--bg-cell-empty);
+  border: var(--border-width-thin) solid var(--grid-line);
+  border-radius: var(--radius-sm);
+}
+
+.piece-slot--lead {
+  width: var(--space-3xl);
+  height: var(--space-3xl);
+  border-color: var(--border-neon);
+  color: var(--accent-secondary);
+  box-shadow: var(--glow-1);
+}
+
+/* 콤보 미터 */
+.combo-meter__value {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-size-xl);
+  line-height: var(--line-height-tight);
+  color: var(--accent-hi);
+  text-shadow: var(--text-glow-soft);
+}
+
+.combo-meter__unit {
+  font-family: var(--font-hud);
+  font-size: var(--text-size-md);
+  color: var(--text-muted);
+}
+
+.combo-meter__track {
+  width: 100%;
+  height: var(--space-xs);
+  background: var(--bg-cell-empty);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.combo-meter__fill {
+  display: block;
+  width: 0%; /* 상태값: 이후 grain에서 갱신 */
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--combo-flash),
+    var(--combo-flash-hot)
+  );
+  border-radius: var(--radius-pill);
+  transition: width var(--duration-base) var(--ease-arcade);
+}
+
+/* 공격 게이지: 플레이어 ↔ AI 줄다리기 바 */
+.attack-gauge {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3xs);
+  height: var(--space-lg);
+}
+
+.attack-gauge__side {
+  flex: 1 1 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-cell-empty);
+}
+
+.attack-gauge__side--player {
+  border: var(--border-width-thin) solid var(--accent-primary);
+  color: var(--accent-primary);
+  box-shadow: var(--glow-1);
+}
+
+.attack-gauge__side--ai {
+  border: var(--border-width-thin) solid var(--accent-secondary);
+  color: var(--accent-secondary);
+  box-shadow: var(--glow-1);
+}
+
+.attack-gauge__pivot {
+  width: var(--border-width-thick);
+  background: var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glow-danger);
+}
+
+/* 접근성: 모션 최소화 선호 시 전환 제거 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: var(--duration-instant) !important;
+  }
+}
