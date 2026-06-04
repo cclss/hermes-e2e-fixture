@@ -1,15 +1,18 @@
 // ============================================================================
 // main.js — charlie-smoke-web-tetris 부트스트랩
 //
-// 이 grain의 책임은 "레이아웃 셸"이다. 여기서는 모듈 로딩과 게임 인스턴스가
-// 들어갈 슬롯만 마련한다. 게임 로직 / 렌더링 / 이펙트 / AI는 이후 grain에서
-// 채운다. 이 파일은 게임 상태를 만들거나 만지지 않는다.
+// 레이아웃 셸의 DOM 핸들을 모아 플레이어 보드의 게임 세션을 구동한다.
+// (게임 규칙은 엔진(g3 API)에만, 픽셀은 렌더 레이어에만.)
+//
+// 이 grain의 범위: 단일 보드 플레이 + 렌더 + 입력 + 루프. AI 보드는 시각
+// 정합을 위해 "빈 보드"만 렌더한다(AI 로직/가비지/이펙트는 후속 grain).
 // ============================================================================
 
-/**
- * 레이아웃 셸에서 게임 모듈이 붙을 DOM 핸들을 수집한다.
- * (실제 게임 인스턴스 생성/연결은 이후 grain에서.)
- */
+import { GameSession } from './game/game-session.js';
+import { Palette } from './render/palette.js';
+import { BoardRenderer } from './render/board-renderer.js';
+
+/** 레이아웃 셸에서 게임 모듈이 붙을 DOM 핸들을 수집한다. */
 function collectMounts() {
   return {
     arena: document.querySelector('.versus-arena'),
@@ -38,23 +41,59 @@ function collectMounts() {
   };
 }
 
-/**
- * 부트스트랩 진입점. 게임 인스턴스 슬롯을 노출만 해 두고,
- * 이후 grain의 모듈이 이 슬롯을 채운다.
- */
+/** 빈 가시 보드 스냅샷(AI 유휴 렌더용). */
+function emptySnapshot(cols, rows) {
+  const board = [];
+  for (let r = 0; r < rows; r++) board.push(new Array(cols).fill(null));
+  return { board, active: null, ghostY: null };
+}
+
+/** AI 보드: 로직 없이 빈 그리드만 렌더(시각 정합용). */
+function renderIdleBoard(canvas) {
+  if (!canvas) return;
+  const COLS = 10;
+  const ROWS = 20;
+  const palette = new Palette();
+  const renderer = new BoardRenderer(canvas, {
+    cols: COLS,
+    rows: ROWS,
+    bufferRows: 20,
+    palette,
+  });
+  const draw = () => {
+    renderer.resize();
+    renderer.render(emptySnapshot(COLS, ROWS));
+  };
+  draw();
+  window.addEventListener('resize', draw);
+}
+
+/** 부트스트랩 진입점. */
 function bootstrap() {
   const mounts = collectMounts();
 
-  // 이후 grain에서 채울 게임 인스턴스 슬롯 (현재는 비어 있음).
-  const game = {
-    mounts,
-    player: null, // 플레이어 게임 인스턴스 슬롯
-    ai: null, // AI 게임 인스턴스 슬롯
-  };
+  // 플레이어 보드: 완전 플레이 가능 세션.
+  const session = new GameSession({
+    canvas: mounts.player.canvas,
+    overlay: mounts.player.overlay,
+    holdSlot: mounts.hud.hold,
+    nextSlots: mounts.hud.next,
+    comboValue: mounts.hud.comboValue,
+    comboFill: mounts.hud.comboFill,
+    seed: (Date.now() >>> 0) || 1,
+  });
+  session.start();
 
-  // 디버깅/후속 grain 연결을 위해 셸 핸들을 전역에 노출한다.
+  // 폰트가 늦게 로드돼도 색은 즉시 잡히지만, 안전하게 한 번 재해석한다.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => session.refreshPalette());
+  }
+
+  // AI 보드: 빈 보드만(후속 grain에서 AI/가비지 배선).
+  renderIdleBoard(mounts.ai.canvas);
+
+  const game = { mounts, player: session, ai: null };
   window.__NEON_BLITZ__ = game;
-
   return game;
 }
 

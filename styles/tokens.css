@@ -136,6 +136,12 @@
   --glow-danger: 0 0 16px rgba(255, 30, 60, 0.7), 0 0 36px rgba(255, 30, 60, 0.45);
   --glow-combo: 0 0 24px rgba(255, 243, 176, 0.8), 0 0 56px rgba(255, 43, 214, 0.5);
 
+  /* 캔버스 글로우 블러 반경 (네온 블룸 — 2D 컨텍스트 shadowBlur용 px 스케일).
+     box-shadow 합성 토큰(glow-1~4)은 캔버스가 못 쓰므로 별도 반경 토큰을 둔다.
+     강도 스케일: 1(고정 블록) < 2(활성 피스). */
+  --glow-blur-1: 6px;
+  --glow-blur-2: 13px;
+
   /* 텍스트 네온 */
   --text-glow-soft: 0 0 6px currentColor;
   --text-glow-hard: 0 0 4px currentColor, 0 0 14px currentColor, 0 0 30px currentColor;

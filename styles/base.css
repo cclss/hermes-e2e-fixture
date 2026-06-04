@@ -166,6 +166,42 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--bg-panel);
+}
+
+/* 오버레이 상태 메시지 (게임오버 / 일시정지) — board-frame Overlay 요소를 채움 */
+.overlay-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.overlay-message__title {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-size-xl);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-hud);
+  text-shadow: var(--text-glow-hard);
+}
+
+.overlay-message__hint {
+  font-family: var(--font-hud);
+  font-size: var(--text-size-sm);
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+}
+
+/* 게임오버: 위험 네온 / 일시정지: 시안 네온 */
+.board-frame__overlay--gameover .overlay-message__title {
+  color: var(--danger);
+}
+.board-frame__overlay--paused .overlay-message__title {
+  color: var(--accent-secondary);
 }
 
 /* ============================================================================
