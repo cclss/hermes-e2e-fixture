@@ -407,6 +407,140 @@ body {
   box-shadow: var(--glow-danger);
 }
 
+/* 게이지 채움: 받는 보드 측 위협(예고 가비지)이 차오른다.
+   플레이어 측은 안쪽(피벗)으로, AI 측도 안쪽(피벗)으로 모이도록 정렬. */
+.attack-gauge__side {
+  position: relative;
+  overflow: hidden;
+}
+.attack-gauge__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: currentColor;
+  box-shadow: var(--glow-2);
+  opacity: 0.55;
+  transition: width var(--duration-fast) var(--ease-out-expo);
+}
+.attack-gauge__side--player .attack-gauge__fill {
+  right: 0; /* 피벗(중앙) 쪽으로 차오름 */
+}
+.attack-gauge__side--ai .attack-gauge__fill {
+  left: 0;
+}
+/* 충전 완료(armed): 위협이 임박 — 위험색 펄스. */
+@keyframes attack-armed-pulse {
+  50% { opacity: 1; }
+}
+.attack-gauge__side.is-armed {
+  color: var(--danger);
+}
+.attack-gauge__side.is-armed .attack-gauge__fill {
+  animation: attack-armed-pulse var(--duration-base) var(--ease-standard) infinite;
+}
+
+/* ============================================================================
+ * Component: garbage-telegraph — 예고(가비지) 바 (g7 대전)
+ * 보드 안쪽 가장자리에 아래→위로 쌓이는 위협 세그먼트. 충전중은 윤곽,
+ * 충전완료(armed)는 위험색 채움 + 글로우. 입력은 통과(pointer-events:none).
+ * ==========================================================================*/
+.garbage-telegraph {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--space-xs);
+  display: flex;
+  flex-direction: column-reverse; /* 아래에서 위로 쌓임 */
+  gap: var(--space-3xs);
+  padding: var(--space-3xs);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+  z-index: 2;
+}
+.garbage-telegraph.is-active {
+  opacity: 1;
+}
+/* 플레이어 보드는 우측(중앙 HUD 쪽), AI 보드는 좌측이 '안쪽 가장자리'. */
+.garbage-telegraph--player { right: 0; }
+.garbage-telegraph--ai { left: 0; }
+
+.garbage-telegraph__seg {
+  flex: 1 1 0;
+  min-height: var(--space-2xs);
+  border-radius: var(--radius-sm);
+  border: var(--border-width-thin) solid var(--garbage-edge);
+  background: var(--garbage-fill);
+  color: var(--garbage-edge);
+  opacity: 0.7;
+}
+/* 충전 완료: 곧 떨어질 라인 — 위험색으로 채워지고 번진다. */
+.garbage-telegraph__seg.is-armed {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger);
+  box-shadow: var(--glow-2);
+  opacity: 1;
+}
+@keyframes telegraph-armed-pulse {
+  50% { box-shadow: var(--glow-3); }
+}
+.garbage-telegraph.is-armed .garbage-telegraph__seg.is-armed {
+  animation: telegraph-armed-pulse var(--duration-slow) var(--ease-standard) infinite;
+}
+
+/* ============================================================================
+ * Component: battle-callout — 화면 공격/도발 콜아웃 (g7 대전)
+ * 보드 위에 잠깐 떠올라 솟아오르며 사라지는 아케이드 캡션.
+ * ==========================================================================*/
+.battle-callout-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes callout-pop {
+  0% { transform: translateY(18%) scale(0.7); opacity: 0; }
+  18% { transform: translateY(0) scale(1.12); opacity: 1; }
+  34% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-32%) scale(1); opacity: 0; }
+}
+
+.battle-callout {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-black);
+  font-size: var(--text-size-lg);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-wide);
+  text-align: center;
+  color: var(--accent-hi);
+  text-shadow: var(--text-glow-hard);
+  animation: callout-pop var(--duration-dramatic) var(--ease-arcade) forwards;
+}
+/* 변형: 공격(금/시안) · 콤보(핫 마젠타, 큼) · 도발(위험색) · 수신(위험, 작게) */
+.battle-callout--attack { color: var(--accent-hi); }
+.battle-callout--combo {
+  color: var(--combo-flash-hot);
+  font-size: var(--text-size-xl);
+}
+.battle-callout--taunt {
+  color: var(--danger);
+  font-family: var(--font-label);
+  letter-spacing: var(--tracking-wider);
+}
+.battle-callout--receive {
+  color: var(--danger);
+  font-size: var(--text-size-md);
+  font-family: var(--font-hud);
+}
+
 /* 접근성: 모션 최소화 선호 시 전환 제거 + 위험 펄스를 정적 글로우로 대체.
    (이펙트 레이어 JS도 prefers-reduced-motion을 읽어 셰이크/잔상/파티클을
    줄인다 — 시각 피드백은 유지하되 과한 모션만 억제한다.) */
@@ -420,5 +554,14 @@ body {
     animation: none;
     border-color: var(--danger);
     box-shadow: var(--shadow-panel), var(--glow-danger);
+  }
+  /* 대전 연출: 펄스/팝 애니메이션은 끄되 위협/콜아웃 가독성은 유지(정적 표시). */
+  .attack-gauge__side.is-armed .attack-gauge__fill,
+  .garbage-telegraph.is-armed .garbage-telegraph__seg.is-armed {
+    animation: none;
+  }
+  .battle-callout {
+    animation: none;
+    opacity: 1;
   }
 }

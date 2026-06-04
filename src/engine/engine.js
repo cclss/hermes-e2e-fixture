@@ -41,6 +41,7 @@ export const EVENTS = Object.freeze({
   COMBO: 'combo',
   LEVEL_UP: 'levelup',
   TOPOUT: 'topout',
+  GARBAGE: 'garbage', // g7: 가비지(패널티) 라인이 이 보드에 주입됨
 });
 
 export class TetrisEngine {
@@ -403,6 +404,40 @@ export class TetrisEngine {
     // 다음 피스
     this.holdUsed = false;
     if (!this.gameOver) this._spawn(this._shiftNext());
+  }
+
+  /**
+   * 가비지(패널티) 라인을 보드 바닥에 주입한다(g7 대전 공격 수신).
+   *
+   * 코어 스코어 로직은 건드리지 않는다 — 이 메서드는 보드 변형 + 탑아웃 판정만
+   * 담당하는 "주입 플러밍"이며, 몇 줄을 보낼지(공격 테이블)·언제 보낼지(예고)는
+   * g7 versus 레이어가 결정한다. 스택이 위로 밀려 활성 피스와 겹치면 가능한 만큼
+   * 위로 밀어 회피하고, 천장 위로도 못 피하면 매장 → 탑아웃 처리한다.
+   *
+   * @param {number} count  주입할 라인 수
+   * @param {number|((i:number)=>number)} holeColForRow  행별 구멍 컬럼
+   * @returns {{applied:number, topout:boolean}}
+   */
+  addGarbage(count, holeColForRow) {
+    const n = Math.max(0, count | 0);
+    if (n === 0 || this.gameOver || !this.started) return { applied: 0, topout: false };
+
+    let topout = this.board.addGarbageRows(n, holeColForRow);
+
+    // 솟아오른 스택이 활성 피스와 겹치면 위로 밀어 회피(불가하면 탑아웃).
+    if (this.active && this.board.collides(this._activeCells(), this.active.x, this.active.y)) {
+      let y = this.active.y;
+      while (y >= 0 && this.board.collides(this._activeCells(), this.active.x, y)) y--;
+      if (y < 0) topout = true;
+      else {
+        this.active.y = y;
+        this.lowestY = Math.min(this.lowestY, y);
+      }
+    }
+
+    this.emitter.emit(EVENTS.GARBAGE, { count: n, topout });
+    if (topout) this._topOut();
+    return { applied: n, topout };
   }
 
   _isBoardEmpty() {

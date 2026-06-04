@@ -117,6 +117,55 @@ export class Board {
     return y >= this.bufferRows;
   }
 
+  /**
+   * 가비지(패널티) 라인을 보드 바닥에 삽입한다(g7 대전). 기존 스택은 그만큼
+   * 위로 밀려 올라가고, 상단으로 밀려난 행에 블록이 있으면 매장(buried)으로
+   * 표시한다(호출부가 탑아웃 판정에 사용). 각 가비지 행은 한 칸(구멍)만 비고
+   * 나머지는 'G'로 채워진다 — 구멍 컬럼은 행마다 지정할 수 있다.
+   *
+   * @param {number} count                삽입할 가비지 라인 수
+   * @param {number|((i:number)=>number)} holeColForRow  행별 구멍 컬럼(숫자 또는 i→col)
+   * @returns {boolean} buried  상단으로 밀려난 행에 블록이 있었는가
+   */
+  addGarbageRows(count, holeColForRow) {
+    const n = Math.max(0, count | 0);
+    if (n === 0) return false;
+
+    // 위로 밀려나(제거되) 상단 n행에 블록이 있으면 매장으로 본다.
+    let buried = false;
+    const top = Math.min(n, this.height);
+    for (let y = 0; y < top && !buried; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (this.grid[y][x] !== null) {
+          buried = true;
+          break;
+        }
+      }
+    }
+
+    const kept = this.grid.slice(n); // 상단 n행 제거 → 나머지가 위로 이동
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+      const raw = typeof holeColForRow === 'function' ? holeColForRow(i) : holeColForRow;
+      const hole = (((raw | 0) % this.width) + this.width) % this.width;
+      const row = new Array(this.width).fill('G');
+      row[hole] = null;
+      rows.push(row);
+    }
+    this.grid = kept.concat(rows);
+    return buried;
+  }
+
+  /** 스택의 최상단(가장 윗줄) 블록의 절대 행 인덱스. 비어 있으면 height 반환. */
+  highestFilledRow() {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (this.grid[y][x] !== null) return y;
+      }
+    }
+    return this.height;
+  }
+
   /** 디버그/스냅샷용: 가시 영역만 잘라낸 2D 배열 복사본. */
   visibleSnapshot() {
     return this.grid.slice(this.bufferRows).map((row) => row.slice());

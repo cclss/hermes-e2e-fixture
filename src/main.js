@@ -10,6 +10,7 @@
 // ============================================================================
 
 import { GameSession } from './game/game-session.js';
+import { VersusController } from './versus/index.js';
 
 /** 레이아웃 셸에서 게임 모듈이 붙을 DOM 핸들을 수집한다. */
 function collectMounts() {
@@ -78,15 +79,26 @@ function bootstrap() {
   });
   aiSession.start();
 
+  // 대전(g7): 두 세션을 묶어 공격(가비지) 주고받기 + 예고/게이지 + 도발을 구동한다.
+  // 게임 규칙은 각 엔진에만 — 컨트롤러는 이벤트 구독 + addGarbage 주입 + 연출만 한다.
+  const versus = new VersusController({
+    player: session,
+    ai: aiSession,
+    attackPlayerEl: mounts.hud.attackPlayer,
+    attackAiEl: mounts.hud.attackAi,
+    seed: (((Date.now() >>> 0) ^ 0x85ebca6b) >>> 0) || 13,
+  });
+
   // 폰트가 늦게 로드돼도 색은 즉시 잡히지만, 안전하게 한 번 재해석한다.
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
       session.refreshPalette();
       aiSession.refreshPalette();
+      versus.refresh();
     });
   }
 
-  const game = { mounts, player: session, ai: aiSession };
+  const game = { mounts, player: session, ai: aiSession, versus };
   window.__NEON_BLITZ__ = game;
   return game;
 }

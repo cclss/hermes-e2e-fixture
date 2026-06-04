@@ -5,8 +5,9 @@
   "type": "module",
   "description": "인공지능과 대전하는 웹 테트리스 (HTML/바닐라 JS/CSS)",
   "scripts": {
-    "test": "node src/engine/__tests__/run.mjs && node src/ai/__tests__/run.mjs",
+    "test": "node src/engine/__tests__/run.mjs && node src/ai/__tests__/run.mjs && node src/versus/__tests__/run.mjs",
     "test:engine": "node src/engine/__tests__/run.mjs",
-    "test:ai": "node src/ai/__tests__/run.mjs"
+    "test:ai": "node src/ai/__tests__/run.mjs",
+    "test:versus": "node src/versus/__tests__/run.mjs"
   }
 }

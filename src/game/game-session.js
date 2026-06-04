@@ -86,6 +86,13 @@ export class GameSession {
 
     this._wireEffects();
 
+    // 대전(g7) 등 상위 레이어가 매 프레임/재시작에 끼어들 수 있는 훅(선택).
+    //   onTick(dt, snap): 프레임 말미(이펙트 전진 후) 호출 — 예고 충전/게이지 렌더 등.
+    //   onRestart(): restart() 시 호출 — 수신 큐/예고 초기화 등.
+    // 게임 규칙은 엔진에만 있고, 훅은 구독/렌더 보조에만 쓴다.
+    this.onTick = cfg.onTick || null;
+    this.onRestart = cfg.onRestart || null;
+
     this.lastTs = 0;
     this.running = false;
     this._frame = this._frame.bind(this);
@@ -126,6 +133,7 @@ export class GameSession {
     if (this.controller) this.controller.reset();
     if (this.agent) this.agent.reset();
     if (this.effects) this.effects.reset();
+    if (this.onRestart) this.onRestart();
     this._setOverlay('none');
     this._renderHud();
   }
@@ -163,6 +171,9 @@ export class GameSession {
       this.effects.setDanger(!this.engine.gameOver && this._inDanger(snap));
       this.effects.update(dt);
     }
+
+    // 상위 레이어(g7 대전) 프레임 훅: 예고 충전 진행 + 예고/게이지 렌더.
+    if (this.onTick) this.onTick(dt, snap);
 
     if (snap.gameOver) this._setOverlay('gameover');
 
