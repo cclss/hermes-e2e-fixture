@@ -75,3 +75,78 @@
 
 - 최종 승패 화면 흐름 → g8.
 - 사운드(공격/도발 효과음) → g9.
+
+---
+
+# Recording — grain-8 HUD·화면·게임 흐름
+
+> Spec 확인: `$GENOSIS_SPEC_PATH`는 g8 시점에도 **미설정/빈 값**이라 참조할 기존 Spec
+> 디렉터리가 없다. 따라서 화면 구조·UI 카피 톤의 새 결정을 g7과 동일하게 본
+> 문서에 recording.md 형식으로 이어 기록한다(경로가 생기면 이 문서를 이전/병합).
+
+## 7. 화면 구조 (전역 씬 흐름)
+
+흐름은 단일 상태기로 묶는다(`src/game/match-flow.js`, `MatchFlow`):
+
+`title → countdown → playing → (paused ↔ playing) → result → (rematch=countdown | menu=title)`
+
+- **전역 씬 오버레이**(`.scene`, `index.html`의 `[data-slot="scene"]`)가 아레나 위에
+  얹혀 시작/카운트다운/일시정지/결과를 표시한다. `playing`에서만 `hidden`.
+- **경계 준수**: 게임 규칙/스코어/콤보/공격은 엔진(g3)·versus(g7)에만. MatchFlow는
+  엔진 `TOPOUT`을 구독해 승패만 가리고, 표시(씬/HUD)와 흐름(freeze/unfreeze)만 한다.
+  보드 정지는 `GameSession.setPaused`(엔진 pause 위임)로만 — 상태 변형 없음.
+- **승패 판정**: 어느 보드든 `TOPOUT` → 첫 이벤트가 매치 종료(중복은 `_matchOver` 가드).
+  플레이어 탑아웃=DEFEAT, AI 탑아웃=VICTORY. 패자 보드는 g5 `triggerKO`가, 승자
+  보드는 `.fx-victory` 글로우 서지가 연출(둘 다 반투명 씬 뒤로 비친다).
+- **카운트다운**은 `playing` 진입 전과 일시정지 **복귀** 시 모두 사용(즉시 복귀로 인한
+  불공정 방지). 3·2·1·FIGHT! — 단계마다 새 요소를 넣어 팝 애니메이션을 리트리거.
+- **HUD 보강**: 중앙 HUD에 SCORE/LEVEL/LINES 패널 추가(엔진 스냅샷 구독, 표시 전용).
+  per-board 오버레이(g4의 PAUSED/GAME OVER)는 VS에서 `suppressOverlay`로 끄고 전역
+  씬이 대신한다.
+
+## 8. UI 카피 톤 (화면 텍스트)
+
+g1~g7과 **일관**되게 "네온 아케이드" — 짧고 강한 영문 대문자 캡션을 화면 UI 전반에
+유지한다(페이지 `lang="ko"`이나, 브랜드/HUD/콜아웃이 이미 영문 아케이드 톤이라 톤
+일관성을 우선). 약올림/도발 카피는 g7 `taunts.js` 자산을 재사용.
+
+| 화면 | 키 카피 |
+|------|---------|
+| 시작 | `NEON BLITZ` · `VS A.I. DUEL` · `SELECT RIVAL` · CTA `ENTER THE GRID` |
+| 난이도 라벨 | `EASY`/`WARM-UP BOT` · `NORMAL`/`FAIR FIGHT` · `HARD`/`NO MERCY` |
+| 카운트다운 | `3` `2` `1` `FIGHT!` |
+| 일시정지 | `PAUSED` · `TAKE A BREATH` · `RESUME` · `QUIT TO MENU` |
+| 결과 | `K.O.` · `VICTORY`/`DEFEAT` · 승 `RIVAL CIRCUITS FRIED` / 패 `THE MACHINE WINS THIS ROUND` · `REMATCH` · `MAIN MENU` |
+| 조작 안내 | `MOVE ◀ ▶ · ROTATE ▲ / Z · SOFT ▼ · HARD ␣ · HOLD C · PAUSE P` |
+
+> 난이도 키(easy/medium/hard)는 `ai/difficulty.js`와 일치시키고, 표시 라벨/플레이버만
+> `match-flow.js`의 `DIFFICULTY_LABELS` 한 곳에 둔다(g9 사운드/현지화 재사용 대비).
+
+## 9. 마이크로 인터랙션 / 모션 (토큰 소비)
+
+- **버튼**: 호버/포커스 시 2px 리프트 + 글로우 강화(`--glow-2→3`), 액티브 시 살짝 눌림.
+  포커스는 `--glow-focus` 링(키보드 접근성).
+- **콤보 미터 펄스**: 콤보 진행 중(`combo>0`)에만 트랙이 핫 마젠타로 맥동
+  (`.combo-meter__track.is-active`).
+- **카운트다운**: `countdown-pop`(scale 0.4→1.12→1, 페이드 인 후 유지 — 단계 교체 시
+  깜빡임 없음).
+- **씬/카드**: `scene-fade` + `scene-pop`(아래에서 떠오름). 결과 카드는 승=시안/패=위험색
+  테두리·글로우로 결과를 색으로도 구분.
+- 모든 색/간격/타이포/모션 값은 `tokens.css` 토큰만 소비(하드코딩 금지). z-index·카드
+  최대폭·clamp 크기 등 구조 기하값만 직접 기술(coding 정책의 "구현 설정값" 구분).
+- `prefers-reduced-motion`: 팝/펄스/리프트 애니메이션은 끄되 화면·수치 가독성은 유지.
+
+## 10. 키 위임 (입력 레이어 비수정)
+
+P/Esc(일시정지)·Enter/R(재시작) 키는 g4 `KeyboardController`를 수정하지 않고, 플레이어
+`GameSession`의 late-bind 훅(`onPauseKey`/`onRestartKey`)을 MatchFlow가 가로채 흐름
+맥락에 맞게 처리한다(title/result에서 Enter=개시, playing↔paused에서 P=토글).
+
+## 11. 튜닝 상수(감각값, 디자인 토큰 아님)
+
+`COUNT_STEP_MS=760`(3·2·1 단계) · `FIGHT_HOLD_MS=540`(FIGHT! 유지) — AI 타이밍·DAS/ARR와
+동일 분류(입력/연출 감각값, Spec 미기록).
+
+## 12. 범위 밖(후속 grain)
+
+- 사운드(시작/카운트다운/KO/버튼 효과음) → g9.

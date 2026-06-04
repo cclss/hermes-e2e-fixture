@@ -11,6 +11,7 @@
 
 import { GameSession } from './game/game-session.js';
 import { VersusController } from './versus/index.js';
+import { MatchFlow } from './game/match-flow.js';
 
 /** 레이아웃 셸에서 게임 모듈이 붙을 DOM 핸들을 수집한다. */
 function collectMounts() {
@@ -41,18 +42,23 @@ function collectMounts() {
       comboFill: document.querySelector('[data-slot="combo-fill"]'),
       attackPlayer: document.querySelector('[data-slot="attack-player"]'),
       attackAi: document.querySelector('[data-slot="attack-ai"]'),
+      score: document.querySelector('[data-slot="score"]'),
+      level: document.querySelector('[data-slot="level"]'),
+      lines: document.querySelector('[data-slot="lines"]'),
     },
+    scene: document.querySelector('[data-slot="scene"]'),
   };
 }
 
-// 기본 AI 난이도(난이도 선택 UI는 g8). 박진감을 위해 어려움을 기본값으로 둔다.
-const DEFAULT_AI_DIFFICULTY = 'hard';
+// 기본(초기 선택) AI 난이도. 시작 화면에서 변경 가능(g8).
+const DEFAULT_AI_DIFFICULTY = 'medium';
 
 /** 부트스트랩 진입점. */
 function bootstrap() {
   const mounts = collectMounts();
 
-  // 플레이어 보드: 완전 플레이 가능 세션.
+  // 플레이어 보드: 완전 플레이 가능 세션. 일시정지/결과는 전역 씬(g8)이 표시하므로
+  // per-board 오버레이는 끄고, 일시정지/재시작 키는 MatchFlow가 위임받는다.
   const session = new GameSession({
     canvas: mounts.player.canvas,
     fxCanvas: mounts.player.fx,
@@ -62,9 +68,12 @@ function bootstrap() {
     nextSlots: mounts.hud.next,
     comboValue: mounts.hud.comboValue,
     comboFill: mounts.hud.comboFill,
+    scoreValue: mounts.hud.score,
+    levelValue: mounts.hud.level,
+    linesValue: mounts.hud.lines,
+    suppressOverlay: true,
     seed: (Date.now() >>> 0) || 1,
   });
-  session.start();
 
   // AI 보드: 휴리스틱 봇이 별도 엔진 인스턴스를 구동(플레이어와 독립).
   // 렌더/이펙트는 동일한 GameSession을 재사용한다(playfield·board-fx 재사용).
@@ -74,10 +83,10 @@ function bootstrap() {
     surface: mounts.ai.surface,
     overlay: mounts.ai.overlay,
     ai: DEFAULT_AI_DIFFICULTY,
+    suppressOverlay: true,
     // 플레이어와 다른 보드 전개를 위해 시드를 분리한다.
     seed: (((Date.now() >>> 0) ^ 0x9e3779b9) >>> 0) || 7,
   });
-  aiSession.start();
 
   // 대전(g7): 두 세션을 묶어 공격(가비지) 주고받기 + 예고/게이지 + 도발을 구동한다.
   // 게임 규칙은 각 엔진에만 — 컨트롤러는 이벤트 구독 + addGarbage 주입 + 연출만 한다.
@@ -89,6 +98,17 @@ function bootstrap() {
     seed: (((Date.now() >>> 0) ^ 0x85ebca6b) >>> 0) || 13,
   });
 
+  // 화면·게임 흐름(g8): 시작→카운트다운→플레이→KO→리매치를 오케스트레이션한다.
+  // 보드/대전은 재사용만 — 흐름은 freeze/unfreeze + 전역 씬 표시로만 개입한다.
+  const flow = new MatchFlow({
+    scene: mounts.scene,
+    player: session,
+    ai: aiSession,
+    versus,
+    defaultDifficulty: DEFAULT_AI_DIFFICULTY,
+  });
+  flow.init();
+
   // 폰트가 늦게 로드돼도 색은 즉시 잡히지만, 안전하게 한 번 재해석한다.
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
@@ -98,7 +118,7 @@ function bootstrap() {
     });
   }
 
-  const game = { mounts, player: session, ai: aiSession, versus };
+  const game = { mounts, player: session, ai: aiSession, versus, flow };
   window.__NEON_BLITZ__ = game;
   return game;
 }

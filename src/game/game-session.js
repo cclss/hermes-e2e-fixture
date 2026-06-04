@@ -18,6 +18,11 @@ const MAX_DT = 50; // 탭 비활성 후 점프 방지(ms 상한)
 const COMBO_FILL_MAX = 10; // 콤보 미터가 가득 차는 기준 콤보 수
 const DANGER_ROWS = 4; // 스택이 상단 N행 안에 들면 위험 경고(감각 임계값)
 
+/** 스코어를 천 단위 구분으로 표기(HUD 가독성). 로케일 비의존(헤드리스 안전). */
+function formatScore(n) {
+  return String(n | 0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 export class GameSession {
   /**
    * @param {object} cfg
@@ -27,8 +32,15 @@ export class GameSession {
    * @param {HTMLElement[]} cfg.nextSlots
    * @param {HTMLElement} [cfg.comboValue]
    * @param {HTMLElement} [cfg.comboFill]
+   * @param {HTMLElement} [cfg.scoreValue]   스코어 HUD 읽기(있을 때만 갱신)
+   * @param {HTMLElement} [cfg.levelValue]   레벨 HUD 읽기
+   * @param {HTMLElement} [cfg.linesValue]   라인 수 HUD 읽기
    * @param {HTMLCanvasElement} [cfg.fxCanvas]   이펙트(FX) 캔버스 오버레이
    * @param {HTMLElement} [cfg.surface]          셰이크/글로우/위험 펄스 타겟(Surface)
+   * @param {boolean} [cfg.suppressOverlay]  per-board 오버레이를 끈다(상위 흐름이
+   *        전역 씬으로 일시정지/결과를 표시할 때 — g8 MatchFlow).
+   * @param {()=>void} [cfg.onPauseKey]      일시정지 키(P/Esc) 처리 위임(상위 흐름).
+   * @param {()=>void} [cfg.onRestartKey]    재시작 키(Enter/R) 처리 위임(상위 흐름).
    * @param {number} [cfg.seed]
    * @param {string|object} [cfg.ai]   설정 시 키보드 대신 휴리스틱 봇이 이 보드를
    *        구동한다(난이도 이름 또는 설정 객체). 플레이어 보드에는 지정하지 않는다.
@@ -63,6 +75,11 @@ export class GameSession {
 
     // 입력 주체: cfg.ai가 있으면 휴리스틱 봇이, 없으면 키보드가 이 보드를 구동한다.
     // 봇은 이 세션의 엔진 인스턴스만 만지며 플레이어 입력에 간섭하지 않는다.
+    // 일시정지/재시작 키 처리: 상위 흐름(g8 MatchFlow)이 위임받을 수 있도록 late-bind
+    // 가능한 훅으로 둔다(미설정 시 per-board 기본 동작). 생성 후 재할당 가능.
+    this.onPauseKey = cfg.onPauseKey || null;
+    this.onRestartKey = cfg.onRestartKey || null;
+
     this.isAI = !!cfg.ai;
     if (this.isAI) {
       this.controller = null;
@@ -76,8 +93,8 @@ export class GameSession {
       this.agent = null;
       this.controller = new KeyboardController({
         engine: () => this.engine,
-        onPause: () => this.togglePause(),
-        onRestart: () => this.requestRestart(),
+        onPause: () => (this.onPauseKey ? this.onPauseKey() : this.togglePause()),
+        onRestart: () => (this.onRestartKey ? this.onRestartKey() : this.requestRestart()),
         isActive: () => this.engine.started && !this.engine.paused && !this.engine.gameOver,
         onHardDrop: (info) => this.effects && this.effects.triggerHardDrop(info),
         target: window,
@@ -145,6 +162,22 @@ export class GameSession {
     this._setOverlay(this.engine.paused ? 'paused' : 'none');
   }
 
+  /**
+   * 일시정지 상태를 명시적으로 설정한다(per-board 오버레이 없이). 상위 흐름(g8
+   * MatchFlow)이 카운트다운/일시정지/결과 동안 보드를 얼리는(freeze) 용도.
+   * 게임 규칙은 엔진에만 — 여기서는 엔진 pause 토글 + 입력 상태 초기화만 한다.
+   */
+  setPaused(v) {
+    if (!this.engine.started) return;
+    this.engine.setPaused(!!v);
+    if (this.controller) this.controller.reset();
+  }
+
+  /** AI 난이도 교체(g8 난이도 선택 UI). AI 보드에서만 유효. 다음 피스부터 반영. */
+  setAIDifficulty(d) {
+    if (this.agent) this.agent.setDifficulty(d);
+  }
+
   _onResize() {
     this.renderer.resize();
     if (this.effects) this.effects.resize();
@@ -206,11 +239,20 @@ export class GameSession {
     if (this.cfg.comboFill) {
       const pct = Math.min(1, combo / COMBO_FILL_MAX) * 100;
       this.cfg.comboFill.style.width = `${pct}%`;
+      // 콤보 진행 중에만 미터를 활성(펄스) 상태로 — 마이크로 인터랙션.
+      this.cfg.comboFill.parentElement &&
+        this.cfg.comboFill.parentElement.classList.toggle('is-active', combo > 0);
     }
+    // 스코어 / 레벨 / 라인 읽기(전용 슬롯이 있는 보드에서만 — 보통 플레이어).
+    if (this.cfg.scoreValue) this.cfg.scoreValue.textContent = formatScore(snap.score);
+    if (this.cfg.levelValue) this.cfg.levelValue.textContent = String(snap.level);
+    if (this.cfg.linesValue) this.cfg.linesValue.textContent = String(snap.lines);
   }
 
   /** 오버레이 상태: 'none' | 'paused' | 'gameover'. */
   _setOverlay(state) {
+    // 상위 흐름(g8)이 전역 씬으로 일시정지/결과를 표시하면 per-board 오버레이는 끈다.
+    if (this.cfg.suppressOverlay) return;
     const el = this.cfg.overlay;
     if (!el) return;
     if (state === this._overlayState) return; // 같은 상태면 DOM 재구성 생략

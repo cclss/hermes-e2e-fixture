@@ -54,6 +54,24 @@
         <span class="hud__title-sub">A.I. DUEL</span>
       </header>
 
+      <!-- 스코어 / 레벨 / 라인 (플레이어 실시간 수치) -->
+      <div class="hud-panel hud-panel--stats">
+        <div class="stat stat--score">
+          <span class="stat__label">SCORE</span>
+          <span class="stat__value" data-slot="score">0</span>
+        </div>
+        <div class="stat__row">
+          <div class="stat">
+            <span class="stat__label">LEVEL</span>
+            <span class="stat__value stat__value--sm" data-slot="level">1</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">LINES</span>
+            <span class="stat__value stat__value--sm" data-slot="lines">0</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 홀드 -->
       <div class="hud-panel hud-panel--hold">
         <span class="hud-panel__label">HOLD</span>
@@ -119,6 +137,10 @@
     </section>
 
   </main>
+
+  <!-- 전역 씬 오버레이: 시작 화면 / 카운트다운 / 일시정지 / 승패(KO) / 리매치.
+       내용은 MatchFlow(g8)가 상태에 따라 렌더한다. 초기엔 숨김(부트스트랩이 연다). -->
+  <div class="scene" data-slot="scene" role="dialog" aria-label="게임 흐름" hidden></div>
 
   <script type="module" src="src/main.js"></script>
 </body>
