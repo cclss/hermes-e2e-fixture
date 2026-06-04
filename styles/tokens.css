@@ -1,0 +1,180 @@
+/* ============================================================================
+ * tokens.css — charlie-smoke-web-tetris
+ * 네온 아케이드 사이버펑크 디자인 토큰. 모든 색/간격/타이포/모서리/테두리/
+ * 그림자/모션/이펙트 값은 여기 선언된 custom property로만 소비한다.
+ * 하드코딩 금지 — 다른 모듈은 var(--token)으로 참조한다.
+ *
+ * 이 파일은 토큰 "선언"만 한다. 토큰을 소비하는 컴포넌트/보드 스타일은
+ * 이후 grain에서 작성한다.
+ * ==========================================================================*/
+
+:root {
+  /* ===== Color ===== */
+
+  /* 테트로미노 (7종 — 고채도 네온) */
+  --piece-i: #00f0ff;
+  --piece-o: #ffe600;
+  --piece-t: #c724ff;
+  --piece-s: #2bff88;
+  --piece-z: #ff2965;
+  --piece-j: #2f6bff;
+  --piece-l: #ff8e1a;
+
+  /* 고스트 / 미리보기 */
+  --ghost-fill: rgba(245, 243, 255, 0.10);
+  --ghost-border: rgba(245, 243, 255, 0.45);
+
+  /* 배경 (보드/씬 그라데이션) */
+  --bg-grad-start: #06060f;
+  --bg-grad-mid: #120a24;
+  --bg-grad-end: #1a0833;
+  --bg-board: #0a0916;
+  --bg-panel: rgba(15, 13, 32, 0.82);
+  --bg-cell-empty: rgba(245, 243, 255, 0.04);
+  --grid-line: rgba(124, 110, 200, 0.16);
+
+  /* 강조 (UI) */
+  --accent-primary: #ff2bd6;
+  --accent-secondary: #00f0ff;
+  --accent-hi: #fff3b0;
+
+  /* 위험 / KO 경고 */
+  --danger: #ff1e3c;
+  --danger-deep: #8c0d24;
+  --ko-flash: #ff3355;
+
+  /* 콤보 플래시 */
+  --combo-flash: #fff3b0;
+  --combo-flash-hot: #ff2bd6;
+
+  /* 파티클 */
+  --particle-spark: #ffffff;
+  --particle-gold: #ffd84d;
+  --particle-neon: #00f0ff;
+  --particle-magenta: #ff2bd6;
+
+  /* 패널티 / 가비지 라인 */
+  --garbage-fill: #3a3850;
+  --garbage-edge: #ff2965;
+
+  /* 텍스트 */
+  --text-primary: #f5f3ff;
+  --text-muted: #9a93c2;
+  --text-hud: #ffffff;
+  --text-on-accent: #0a0916;
+
+  /* 보더 색 */
+  --border-subtle: rgba(124, 110, 200, 0.28);
+  --border-neon: rgba(0, 240, 255, 0.65);
+  --border-danger: rgba(255, 30, 60, 0.7);
+
+  /* ===== Typography ===== */
+
+  /* Family */
+  --font-display: "Orbitron", "Russo One", system-ui, sans-serif;
+  --font-hud: "Share Tech Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-label: "Rajdhani", system-ui, sans-serif;
+
+  /* Size */
+  --text-size-xs: 0.6875rem;
+  --text-size-sm: 0.8125rem;
+  --text-size-md: 1rem;
+  --text-size-lg: 1.5rem;
+  --text-size-xl: 2.25rem;
+  --text-size-display: 3.5rem;
+
+  /* Weight */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --font-weight-black: 900;
+
+  /* Line-height */
+  --line-height-tight: 1.05;
+  --line-height-snug: 1.25;
+  --line-height-normal: 1.45;
+
+  /* Letter-spacing */
+  --tracking-normal: 0;
+  --tracking-wide: 0.08em;
+  --tracking-wider: 0.18em;
+
+  /* ===== Spacing (8px 기반) ===== */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* ===== Radius ===== */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* ===== Border width ===== */
+  --border-width-thin: 1px;
+  --border-width-base: 2px;
+  --border-width-thick: 4px;
+
+  /* ===== Shadow / Glow ===== */
+
+  /* 네온 글로우 강도 (currentColor 기반 — 대상 색을 따라 번진다) */
+  --glow-1: 0 0 4px currentColor;
+  --glow-2: 0 0 8px currentColor, 0 0 16px currentColor;
+  --glow-3: 0 0 12px currentColor, 0 0 28px currentColor;
+  --glow-4: 0 0 18px currentColor, 0 0 40px currentColor, 0 0 72px currentColor;
+
+  /* 역할 고정 글로우 */
+  --glow-focus: 0 0 0 2px rgba(0, 240, 255, 0.65), 0 0 16px rgba(0, 240, 255, 0.5);
+  --glow-danger: 0 0 16px rgba(255, 30, 60, 0.7), 0 0 36px rgba(255, 30, 60, 0.45);
+  --glow-combo: 0 0 24px rgba(255, 243, 176, 0.8), 0 0 56px rgba(255, 43, 214, 0.5);
+
+  /* 텍스트 네온 */
+  --text-glow-soft: 0 0 6px currentColor;
+  --text-glow-hard: 0 0 4px currentColor, 0 0 14px currentColor, 0 0 30px currentColor;
+
+  /* 패널 깊이감 (비-네온) */
+  --shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.55);
+
+  /* ===== Motion ===== */
+
+  /* Duration */
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  --duration-dramatic: 700ms;
+
+  /* Easing (이징 곡선) */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-arcade: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-fast: cubic-bezier(0.4, 0, 1, 1);
+  --ease-linear: linear;
+
+  /* ===== Effect (게임 피드백 강도) ===== */
+
+  /* 화면 흔들림 진폭 (screen-shake 단계) */
+  --shake-amp-1: 2px;
+  --shake-amp-2: 5px;
+  --shake-amp-3: 10px;
+  --shake-amp-4: 18px;
+
+  /* 플래시 불투명도 (콤보 / 라인 클리어) */
+  --flash-opacity-low: 0.15;
+  --flash-opacity-mid: 0.35;
+  --flash-opacity-high: 0.6;
+  --flash-opacity-ko: 0.85;
+
+  /* 파티클 크기 */
+  --particle-size-sm: 3px;
+  --particle-size-md: 6px;
+  --particle-size-lg: 10px;
+}
