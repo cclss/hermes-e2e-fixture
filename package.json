@@ -1,0 +1,10 @@
+{
+  "name": "charlie-smoke-web-tetris",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "인공지능과 대전하는 웹 테트리스 (HTML/바닐라 JS/CSS)",
+  "scripts": {
+    "test": "node src/engine/__tests__/run.mjs"
+  }
+}
