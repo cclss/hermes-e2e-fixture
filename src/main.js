@@ -12,6 +12,7 @@
 import { GameSession } from './game/game-session.js';
 import { VersusController } from './versus/index.js';
 import { MatchFlow } from './game/match-flow.js';
+import { AudioDirector } from './audio/index.js';
 
 /** 레이아웃 셸에서 게임 모듈이 붙을 DOM 핸들을 수집한다. */
 function collectMounts() {
@@ -47,6 +48,7 @@ function collectMounts() {
       lines: document.querySelector('[data-slot="lines"]'),
     },
     scene: document.querySelector('[data-slot="scene"]'),
+    mute: document.querySelector('[data-slot="mute"]'),
   };
 }
 
@@ -107,6 +109,18 @@ function bootstrap() {
     versus,
     defaultDifficulty: DEFAULT_AI_DIFFICULTY,
   });
+
+  // 사운드(g9): 엔진/대전/흐름 이벤트를 구독해 합성 SFX·BGM·음소거를 구동한다.
+  // 게임 규칙은 일절 만지지 않는 이벤트 출력 레이어 — flow.init() 전에 onFlow 등
+  // 훅을 설치해 첫 상태 전환부터 반영되게 한다.
+  const audio = new AudioDirector({
+    player: session,
+    ai: aiSession,
+    versus,
+    flow,
+    toggleEl: mounts.mute,
+  });
+
   flow.init();
 
   // 폰트가 늦게 로드돼도 색은 즉시 잡히지만, 안전하게 한 번 재해석한다.
@@ -118,7 +132,7 @@ function bootstrap() {
     });
   }
 
-  const game = { mounts, player: session, ai: aiSession, versus, flow };
+  const game = { mounts, player: session, ai: aiSession, versus, flow, audio };
   window.__NEON_BLITZ__ = game;
   return game;
 }

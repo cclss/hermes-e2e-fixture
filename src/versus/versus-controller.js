@@ -78,6 +78,10 @@ export class VersusController {
     this._tauntTarget = cfg.tauntTarget || (typeof window !== 'undefined' ? window : null);
     this._onTauntKey = this._onTauntKey.bind(this);
     if (this._tauntTarget) this._tauntTarget.addEventListener('keydown', this._onTauntKey);
+
+    // 연출/사운드(g9) 구독 훅: 도발 성립 시 호출(규칙 비변경, 표시/오디오용).
+    //   onTaunt({ by, target, isAI })  by/target = 'player'|'ai'
+    this.onTaunt = cfg.onTaunt || null;
   }
 
   _readColors() {
@@ -291,6 +295,10 @@ export class VersusController {
    * victim 보드에 도발 콜아웃 + 위협 플래시/셰이크, 그리고 예고 1줄 추가.
    */
   _taunt(taunter, victim) {
+    // 연출/사운드 구독 훅(g9): 도발 성립 알림(규칙 비변경).
+    if (this.onTaunt) {
+      this.onTaunt({ by: taunter.name, target: victim.name, isAI: !!taunter.isAI });
+    }
     // 추가 압박: 소량(과하지 않게), 예고로 들어가 반격 창은 유지.
     if (TAUNT_EXTRA_LINES > 0) {
       victim.incoming.push({ lines: TAUNT_LINES, charge: TELEGRAPH_MS });

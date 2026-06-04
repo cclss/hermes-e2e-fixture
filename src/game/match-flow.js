@@ -73,6 +73,11 @@ export class MatchFlow {
     this._timer = null;
     this._matchOver = false;
 
+    // 연출/사운드(g9) 구독 훅(규칙 비변경, 표시/오디오용):
+    //   onFlow('state', state) · onFlow('count', {text,isFight}) ·
+    //   onFlow('result', {playerWon}) · onFlow('select', name)
+    this.onFlow = cfg.onFlow || null;
+
     // 일시정지/재시작 키를 플레이어 세션(키보드 보유) 위에서 위임받는다.
     this.player.onPauseKey = () => this.handlePauseKey();
     this.player.onRestartKey = () => this.handleRestartKey();
@@ -101,6 +106,7 @@ export class MatchFlow {
     this.state = state;
     this.scene.className = `scene scene--${state}`;
     this.scene.hidden = state === STATE.PLAYING;
+    if (this.onFlow) this.onFlow('state', state);
   }
 
   _clearTimer() {
@@ -169,6 +175,7 @@ export class MatchFlow {
   _selectDifficulty(name) {
     this.difficulty = name;
     this.ai.setAIDifficulty(name);
+    if (this.onFlow) this.onFlow('select', name); // 선택 확인음(g9)
     // 선택 토글만 갱신(DOM 재구성 없이 마이크로 인터랙션 유지).
     const btns = this.scene.querySelectorAll('.difficulty__opt');
     btns.forEach((b) => {
@@ -223,6 +230,7 @@ export class MatchFlow {
     const num = el('span', `countdown__num${isFight ? ' countdown__num--go' : ''}`, text);
     // animation 재생을 위해 매 단계 새 요소를 넣는다(재구성 = 리트리거).
     this.scene.appendChild(num);
+    if (this.onFlow) this.onFlow('count', { text, isFight });
   }
 
   _go() {
@@ -301,6 +309,9 @@ export class MatchFlow {
     if (winner.cfg.surface) winner.cfg.surface.classList.add('fx-victory');
 
     this._setState(STATE.RESULT);
+    // KO 사운드/연출 구독 훅(승패 정보 포함). _setState('result')보다 뒤에 알려
+    // 오디오가 BGM 정지 후 KO 스팅어를 울릴 수 있게 한다.
+    if (this.onFlow) this.onFlow('result', { playerWon });
     this._renderResult(playerWon);
   }
 

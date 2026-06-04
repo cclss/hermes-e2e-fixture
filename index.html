@@ -21,6 +21,19 @@
        게임 로직/렌더링/이펙트/AI는 이후 grain에서 채운다. -->
   <main class="versus-arena" aria-label="대전 아레나">
 
+    <!-- 사운드 음소거 토글(g9): 우상단 상시 노출. 단축키 M. -->
+    <button
+      type="button"
+      class="sound-toggle"
+      data-slot="mute"
+      aria-pressed="false"
+      aria-label="소리 끄기"
+      title="SOUND ON (M)"
+    >
+      <span class="sound-toggle__icon" data-slot="mute-icon" aria-hidden="true">🔊</span>
+      <span class="sound-toggle__label">SFX</span>
+    </button>
+
     <!-- ===== 좌: 플레이어 보드 ===== -->
     <section
       class="board-frame board-frame--player"

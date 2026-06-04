@@ -35,6 +35,7 @@ export const EVENTS = Object.freeze({
   MOVE: 'move',
   ROTATE: 'rotate',
   HOLD: 'hold',
+  HARD_DROP: 'harddrop', // g9: 하드드롭 확정(낙하 직후·락 직전) — 연출/사운드 구독용
   LOCK: 'lock',
   LINE_CLEAR: 'lineclear',
   TSPIN: 'tspin',
@@ -256,6 +257,8 @@ export class TetrisEngine {
       this.usedLastKick = false;
     }
     if (dropped > 0) this.scoring.addHardDrop(dropped);
+    // 낙하 확정 신호(규칙 비변경): 연출/사운드 레이어가 락 클릭과 구분해 임팩트를 낸다.
+    this.emitter.emit(EVENTS.HARD_DROP, { dropped });
     this._lock();
     return true;
   }

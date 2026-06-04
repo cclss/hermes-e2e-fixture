@@ -951,4 +951,76 @@ body {
   .btn:active {
     transform: none;
   }
+  .sound-toggle:hover,
+  .sound-toggle:focus-visible {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * Component: sound-toggle — 음소거 토글(g9)
+ * 우상단 상시 노출 칩. 켜짐=네온 시안, 음소거=뮤트 표시. 토큰만 소비.
+ * ==========================================================================*/
+
+.sound-toggle {
+  position: fixed;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-sm);
+  font-family: var(--font-hud);
+  font-size: var(--text-size-xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--accent-secondary);
+  background: var(--bg-panel);
+  border: var(--border-width-thin) solid var(--border-neon);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glow-1);
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-arcade),
+    box-shadow var(--duration-fast) var(--ease-out-expo),
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible {
+  transform: translateY(-1px);
+  color: var(--accent-hi);
+  box-shadow: var(--glow-2);
+}
+
+.sound-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-focus);
+}
+
+.sound-toggle:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.sound-toggle__icon {
+  font-size: var(--text-size-sm);
+  line-height: 1;
+}
+
+.sound-toggle__label {
+  font-weight: var(--font-weight-bold);
+}
+
+/* 음소거: 채도를 죽이고 위험색 테두리로 "꺼짐"을 명시. */
+.sound-toggle.is-muted {
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  box-shadow: none;
+  opacity: 0.78;
+}
+.sound-toggle.is-muted:hover,
+.sound-toggle.is-muted:focus-visible {
+  color: var(--text-primary);
 }
