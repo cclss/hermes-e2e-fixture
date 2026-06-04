@@ -6,14 +6,16 @@
 // 엔진에만 있고, 여기서는 update(dt) 호출과 스냅샷 렌더만 한다.
 // ============================================================================
 
-import { TetrisEngine } from '../engine/index.js';
+import { TetrisEngine, EVENTS } from '../engine/index.js';
 import { Palette } from '../render/palette.js';
 import { BoardRenderer } from '../render/board-renderer.js';
 import { PreviewRenderer } from '../render/preview-renderer.js';
+import { EffectsLayer } from '../render/effects-layer.js';
 import { KeyboardController } from '../input/keyboard-controller.js';
 
 const MAX_DT = 50; // 탭 비활성 후 점프 방지(ms 상한)
 const COMBO_FILL_MAX = 10; // 콤보 미터가 가득 차는 기준 콤보 수
+const DANGER_ROWS = 4; // 스택이 상단 N행 안에 들면 위험 경고(감각 임계값)
 
 export class GameSession {
   /**
@@ -24,6 +26,8 @@ export class GameSession {
    * @param {HTMLElement[]} cfg.nextSlots
    * @param {HTMLElement} [cfg.comboValue]
    * @param {HTMLElement} [cfg.comboFill]
+   * @param {HTMLCanvasElement} [cfg.fxCanvas]   이펙트(FX) 캔버스 오버레이
+   * @param {HTMLElement} [cfg.surface]          셰이크/글로우/위험 펄스 타겟(Surface)
    * @param {number} [cfg.seed]
    */
   constructor(cfg) {
@@ -38,6 +42,18 @@ export class GameSession {
       palette: this.palette,
     });
 
+    // 이펙트 레이어(선택): FX 캔버스가 있으면 게임 주스를 구동한다.
+    this.effects = cfg.fxCanvas
+      ? new EffectsLayer({
+          canvas: cfg.fxCanvas,
+          shakeTarget: cfg.surface || null,
+          cols: this.engine.board.width,
+          rows: this.engine.board.visibleHeight,
+          bufferRows: this.engine.board.bufferRows,
+          palette: this.palette,
+        })
+      : null;
+
     this.holdPreview = new PreviewRenderer(cfg.holdSlot, this.palette);
     this.nextPreviews = (cfg.nextSlots || []).map((el) => new PreviewRenderer(el, this.palette));
 
@@ -46,13 +62,28 @@ export class GameSession {
       onPause: () => this.togglePause(),
       onRestart: () => this.requestRestart(),
       isActive: () => this.engine.started && !this.engine.paused && !this.engine.gameOver,
+      onHardDrop: (info) => this.effects && this.effects.triggerHardDrop(info),
       target: window,
     });
+
+    this._wireEffects();
 
     this.lastTs = 0;
     this.running = false;
     this._frame = this._frame.bind(this);
     this._onResize = this._onResize.bind(this);
+  }
+
+  /** 엔진 이벤트 → 이펙트 트리거 배선(게임 로직 비의존, 구독만). */
+  _wireEffects() {
+    if (!this.effects) return;
+    const fx = this.effects;
+    // 라인클리어: 디졸브 + 파티클 + 플래시 + 셰이크 + 글로우(강도 단계 자동).
+    this.engine.on(EVENTS.LINE_CLEAR, (e) => fx.triggerLineClear(e));
+    // T스핀(라인 0줄): 회전 성공 보상 깜빡임.
+    this.engine.on(EVENTS.TSPIN, (e) => fx.triggerTSpin(e));
+    // 탑아웃: KO 연출.
+    this.engine.on(EVENTS.TOPOUT, () => fx.triggerKO());
   }
 
   start() {
@@ -74,6 +105,7 @@ export class GameSession {
   restart() {
     this.engine.start();
     this.controller.reset();
+    if (this.effects) this.effects.reset();
     this._setOverlay('none');
     this._renderHud();
   }
@@ -87,6 +119,7 @@ export class GameSession {
 
   _onResize() {
     this.renderer.resize();
+    if (this.effects) this.effects.resize();
   }
 
   _frame(ts) {
@@ -96,16 +129,36 @@ export class GameSession {
 
     if (!this.engine.paused && !this.engine.gameOver) {
       this.controller.update(dt);
-      this.engine.update(dt);
+      this.engine.update(dt); // 라인클리어/T스핀/탑아웃 이벤트 → 이펙트 트리거
     }
 
     const snap = this.engine.snapshot();
     this.renderer.render(snap);
     this._renderHud(snap);
 
+    // 이펙트 레이어: 위험 경고 갱신 + 프레임 전진(파티클/플래시/셰이크).
+    if (this.effects) {
+      this.effects.setDanger(!this.engine.gameOver && this._inDanger(snap));
+      this.effects.update(dt);
+    }
+
     if (snap.gameOver) this._setOverlay('gameover');
 
     requestAnimationFrame(this._frame);
+  }
+
+  /** 스택이 상단 DANGER_ROWS 안에 닿았는가(위험 경고 펄스 트리거). */
+  _inDanger(snap) {
+    const board = snap.board;
+    const limit = Math.min(DANGER_ROWS, board.length);
+    for (let r = 0; r < limit; r++) {
+      const row = board[r];
+      if (!row) continue;
+      for (let c = 0; c < row.length; c++) {
+        if (row[c]) return true;
+      }
+    }
+    return false;
   }
 
   _renderHud(snap = this.engine.snapshot()) {
@@ -150,5 +203,6 @@ export class GameSession {
   /** 토큰 재해석(폰트 로드 후 색이 빈 문자열로 잡히는 것 방지용). */
   refreshPalette() {
     this.palette.refresh();
+    if (this.effects) this.effects.refresh();
   }
 }

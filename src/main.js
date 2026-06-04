@@ -18,12 +18,16 @@ function collectMounts() {
     arena: document.querySelector('.versus-arena'),
     player: {
       frame: document.querySelector('.board-frame--player'),
+      surface: document.querySelector('.board-frame--player .board-frame__surface'),
       canvas: document.querySelector('.board-frame--player .board-frame__canvas'),
+      fx: document.querySelector('.board-frame--player .board-frame__fx'),
       overlay: document.querySelector('[data-slot="player-overlay"]'),
     },
     ai: {
       frame: document.querySelector('.board-frame--ai'),
+      surface: document.querySelector('.board-frame--ai .board-frame__surface'),
       canvas: document.querySelector('.board-frame--ai .board-frame__canvas'),
+      fx: document.querySelector('.board-frame--ai .board-frame__fx'),
       overlay: document.querySelector('[data-slot="ai-overlay"]'),
     },
     hud: {
@@ -75,6 +79,8 @@ function bootstrap() {
   // 플레이어 보드: 완전 플레이 가능 세션.
   const session = new GameSession({
     canvas: mounts.player.canvas,
+    fxCanvas: mounts.player.fx,
+    surface: mounts.player.surface,
     overlay: mounts.player.overlay,
     holdSlot: mounts.hud.hold,
     nextSlots: mounts.hud.next,

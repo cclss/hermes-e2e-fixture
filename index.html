@@ -40,6 +40,8 @@
           role="img"
           aria-label="플레이어 플레이 필드"
         ></canvas>
+        <!-- 이펙트(FX) 레이어: 보드 위에 얹히는 별도 캔버스(파티클·플래시·디졸브). -->
+        <canvas class="board-frame__fx" aria-hidden="true"></canvas>
         <div class="board-frame__overlay" data-slot="player-overlay" hidden></div>
       </div>
     </section>
@@ -110,6 +112,8 @@
           role="img"
           aria-label="AI 플레이 필드"
         ></canvas>
+        <!-- 이펙트(FX) 레이어(대전 grain에서 AI 측 연출에 재사용). -->
+        <canvas class="board-frame__fx" aria-hidden="true"></canvas>
         <div class="board-frame__overlay" data-slot="ai-overlay" hidden></div>
       </div>
     </section>

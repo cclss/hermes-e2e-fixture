@@ -129,6 +129,8 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-panel);
   overflow: hidden;
+  /* 스크린셰이크는 이펙트 레이어가 transform을 인라인으로 갱신한다(합성 레이어). */
+  will-change: transform;
   transition:
     border-color var(--duration-base) var(--ease-out-expo),
     box-shadow var(--duration-base) var(--ease-out-expo);
@@ -158,6 +160,34 @@ body {
 .board-frame__canvas:focus-visible {
   outline: none;
   box-shadow: var(--glow-focus);
+}
+
+/* 이펙트(FX) 레이어: 보드 캔버스 위·오버레이 아래에 겹치는 투명 캔버스.
+   파티클/플래시/디졸브/충격 링을 그린다. 입력은 통과시킨다. */
+.board-frame__fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* 큰 라인클리어/T스핀/KO 시 네온 프레임 글로우 서지(currentColor=강조색).
+   surface의 box-shadow 전환(이미 선언됨)이 부드럽게 차오르고 잦아든다. */
+.board-frame__surface.fx-surge {
+  box-shadow: var(--shadow-panel), var(--glow-4);
+}
+
+/* 위험 경고: 스택이 상단에 닿으면 프레임이 위험색으로 맥동한다. */
+@keyframes danger-pulse {
+  50% {
+    border-color: var(--danger);
+    box-shadow: var(--shadow-panel), var(--glow-danger);
+  }
+}
+
+.board-frame__surface.is-danger {
+  animation: danger-pulse var(--duration-slow) var(--ease-standard) infinite;
 }
 
 .board-frame__overlay {
@@ -377,11 +407,18 @@ body {
   box-shadow: var(--glow-danger);
 }
 
-/* 접근성: 모션 최소화 선호 시 전환 제거 */
+/* 접근성: 모션 최소화 선호 시 전환 제거 + 위험 펄스를 정적 글로우로 대체.
+   (이펙트 레이어 JS도 prefers-reduced-motion을 읽어 셰이크/잔상/파티클을
+   줄인다 — 시각 피드백은 유지하되 과한 모션만 억제한다.) */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     transition-duration: var(--duration-instant) !important;
+  }
+  .board-frame__surface.is-danger {
+    animation: none;
+    border-color: var(--danger);
+    box-shadow: var(--shadow-panel), var(--glow-danger);
   }
 }

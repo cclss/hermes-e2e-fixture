@@ -55,13 +55,16 @@ export class KeyboardController {
    * @param {() => void} hooks.onPause       일시정지 토글
    * @param {() => void} hooks.onRestart     재시작
    * @param {() => boolean} hooks.isActive   입력을 받아도 되는 상태인가(미정지·진행중)
+   * @param {(info:object)=>void} [hooks.onHardDrop]  하드드롭 직전 관찰 훅(이펙트용).
+   *        엔진 규칙은 건드리지 않고, 낙하 직전 활성 피스/착지행만 알려준다.
    * @param {EventTarget} [target=window]
    */
-  constructor({ engine, onPause, onRestart, isActive, target = window }) {
+  constructor({ engine, onPause, onRestart, isActive, onHardDrop, target = window }) {
     this.getEngine = engine;
     this.onPause = onPause;
     this.onRestart = onRestart;
     this.isActive = isActive;
+    this.onHardDrop = onHardDrop || null;
     this.target = target;
 
     // 방향키 자동 반복 타이머. dir: 마지막으로 눌린 방향(-1/0/1).
@@ -141,9 +144,19 @@ export class KeyboardController {
         this.softTimer = 0;
         eng.softDrop(); // 즉시 1칸
         break;
-      case 'hard':
+      case 'hard': {
+        // 이펙트 레이어가 낙하 경로 잔상을 그릴 수 있도록, 낙하 직전 활성
+        // 피스의 절대 셀 좌표와 착지행(고스트 y)을 관찰 훅으로 알린다.
+        // 엔진 상태는 읽기만 하고 규칙은 건드리지 않는다.
+        let info = null;
+        if (this.onHardDrop && eng.active) {
+          const snap = eng.snapshotActive().active;
+          if (snap) info = { cells: snap.cells, type: snap.type, fromY: snap.y, toY: eng.getGhostY() };
+        }
         eng.hardDrop();
+        if (info) this.onHardDrop(info);
         break;
+      }
       case 'rotateCW':
         eng.rotateCW();
         break;

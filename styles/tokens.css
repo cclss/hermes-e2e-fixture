@@ -183,4 +183,13 @@
   --particle-size-sm: 3px;
   --particle-size-md: 6px;
   --particle-size-lg: 10px;
+
+  /* 파티클 폭발 개수 (burst 강도 단계 — 1=약함 → 4=강함) */
+  --burst-count-1: 8;
+  --burst-count-2: 16;
+  --burst-count-3: 28;
+  --burst-count-4: 48;
+
+  /* 하드드롭 잔상(afterimage) 기준 불투명도 */
+  --trail-opacity: 0.45;
 }
