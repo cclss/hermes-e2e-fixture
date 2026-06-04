@@ -12,6 +12,7 @@ import { BoardRenderer } from '../render/board-renderer.js';
 import { PreviewRenderer } from '../render/preview-renderer.js';
 import { EffectsLayer } from '../render/effects-layer.js';
 import { KeyboardController } from '../input/keyboard-controller.js';
+import { AIController } from '../ai/index.js';
 
 const MAX_DT = 50; // 탭 비활성 후 점프 방지(ms 상한)
 const COMBO_FILL_MAX = 10; // 콤보 미터가 가득 차는 기준 콤보 수
@@ -29,6 +30,9 @@ export class GameSession {
    * @param {HTMLCanvasElement} [cfg.fxCanvas]   이펙트(FX) 캔버스 오버레이
    * @param {HTMLElement} [cfg.surface]          셰이크/글로우/위험 펄스 타겟(Surface)
    * @param {number} [cfg.seed]
+   * @param {string|object} [cfg.ai]   설정 시 키보드 대신 휴리스틱 봇이 이 보드를
+   *        구동한다(난이도 이름 또는 설정 객체). 플레이어 보드에는 지정하지 않는다.
+   * @param {()=>number} [cfg.aiRng]   봇 분산/실수용 난수원(테스트/재현용, 선택).
    */
   constructor(cfg) {
     this.cfg = cfg;
@@ -54,17 +58,31 @@ export class GameSession {
         })
       : null;
 
-    this.holdPreview = new PreviewRenderer(cfg.holdSlot, this.palette);
+    this.holdPreview = cfg.holdSlot ? new PreviewRenderer(cfg.holdSlot, this.palette) : null;
     this.nextPreviews = (cfg.nextSlots || []).map((el) => new PreviewRenderer(el, this.palette));
 
-    this.controller = new KeyboardController({
-      engine: () => this.engine,
-      onPause: () => this.togglePause(),
-      onRestart: () => this.requestRestart(),
-      isActive: () => this.engine.started && !this.engine.paused && !this.engine.gameOver,
-      onHardDrop: (info) => this.effects && this.effects.triggerHardDrop(info),
-      target: window,
-    });
+    // 입력 주체: cfg.ai가 있으면 휴리스틱 봇이, 없으면 키보드가 이 보드를 구동한다.
+    // 봇은 이 세션의 엔진 인스턴스만 만지며 플레이어 입력에 간섭하지 않는다.
+    this.isAI = !!cfg.ai;
+    if (this.isAI) {
+      this.controller = null;
+      this.agent = new AIController({
+        getEngine: () => this.engine,
+        difficulty: cfg.ai,
+        onHardDrop: (info) => this.effects && this.effects.triggerHardDrop(info),
+        rng: cfg.aiRng,
+      });
+    } else {
+      this.agent = null;
+      this.controller = new KeyboardController({
+        engine: () => this.engine,
+        onPause: () => this.togglePause(),
+        onRestart: () => this.requestRestart(),
+        isActive: () => this.engine.started && !this.engine.paused && !this.engine.gameOver,
+        onHardDrop: (info) => this.effects && this.effects.triggerHardDrop(info),
+        target: window,
+      });
+    }
 
     this._wireEffects();
 
@@ -88,7 +106,8 @@ export class GameSession {
 
   start() {
     this.engine.start();
-    this.controller.attach();
+    if (this.controller) this.controller.attach();
+    if (this.agent) this.agent.reset();
     window.addEventListener('resize', this._onResize);
     this.running = true;
     this.lastTs = 0;
@@ -104,7 +123,8 @@ export class GameSession {
 
   restart() {
     this.engine.start();
-    this.controller.reset();
+    if (this.controller) this.controller.reset();
+    if (this.agent) this.agent.reset();
     if (this.effects) this.effects.reset();
     this._setOverlay('none');
     this._renderHud();
@@ -113,7 +133,7 @@ export class GameSession {
   togglePause() {
     if (this.engine.gameOver || !this.engine.started) return;
     this.engine.setPaused(!this.engine.paused);
-    this.controller.reset();
+    if (this.controller) this.controller.reset();
     this._setOverlay(this.engine.paused ? 'paused' : 'none');
   }
 
@@ -128,7 +148,9 @@ export class GameSession {
     this.lastTs = ts;
 
     if (!this.engine.paused && !this.engine.gameOver) {
-      this.controller.update(dt);
+      // 입력 주체가 먼저 커맨드를 내리고(키보드 또는 봇), 이어 엔진이 중력/락을 진행.
+      if (this.controller) this.controller.update(dt);
+      if (this.agent) this.agent.update(dt);
       this.engine.update(dt); // 라인클리어/T스핀/탑아웃 이벤트 → 이펙트 트리거
     }
 
@@ -162,8 +184,8 @@ export class GameSession {
   }
 
   _renderHud(snap = this.engine.snapshot()) {
-    // 홀드 / 넥스트 미니 렌더
-    this.holdPreview.render(snap.hold || null);
+    // 홀드 / 넥스트 미니 렌더(전용 슬롯이 없는 보드 — 예: AI — 는 건너뛴다)
+    if (this.holdPreview) this.holdPreview.render(snap.hold || null);
     for (let i = 0; i < this.nextPreviews.length; i++) {
       this.nextPreviews[i].render(snap.next[i] || null);
     }

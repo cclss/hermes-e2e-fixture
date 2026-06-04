@@ -4,13 +4,12 @@
 // 레이아웃 셸의 DOM 핸들을 모아 플레이어 보드의 게임 세션을 구동한다.
 // (게임 규칙은 엔진(g3 API)에만, 픽셀은 렌더 레이어에만.)
 //
-// 이 grain의 범위: 단일 보드 플레이 + 렌더 + 입력 + 루프. AI 보드는 시각
-// 정합을 위해 "빈 보드"만 렌더한다(AI 로직/가비지/이펙트는 후속 grain).
+// 플레이어 보드는 키보드로, AI 보드는 휴리스틱 봇이 각자의 엔진 인스턴스로
+// 구동한다(두 세션은 서로 독립 — 봇은 플레이어 입력/엔진에 간섭하지 않는다).
+// 가비지 송수신·승패는 후속 grain(g7), 난이도 선택 UI는 g8.
 // ============================================================================
 
 import { GameSession } from './game/game-session.js';
-import { Palette } from './render/palette.js';
-import { BoardRenderer } from './render/board-renderer.js';
 
 /** 레이아웃 셸에서 게임 모듈이 붙을 DOM 핸들을 수집한다. */
 function collectMounts() {
@@ -45,32 +44,8 @@ function collectMounts() {
   };
 }
 
-/** 빈 가시 보드 스냅샷(AI 유휴 렌더용). */
-function emptySnapshot(cols, rows) {
-  const board = [];
-  for (let r = 0; r < rows; r++) board.push(new Array(cols).fill(null));
-  return { board, active: null, ghostY: null };
-}
-
-/** AI 보드: 로직 없이 빈 그리드만 렌더(시각 정합용). */
-function renderIdleBoard(canvas) {
-  if (!canvas) return;
-  const COLS = 10;
-  const ROWS = 20;
-  const palette = new Palette();
-  const renderer = new BoardRenderer(canvas, {
-    cols: COLS,
-    rows: ROWS,
-    bufferRows: 20,
-    palette,
-  });
-  const draw = () => {
-    renderer.resize();
-    renderer.render(emptySnapshot(COLS, ROWS));
-  };
-  draw();
-  window.addEventListener('resize', draw);
-}
+// 기본 AI 난이도(난이도 선택 UI는 g8). 박진감을 위해 어려움을 기본값으로 둔다.
+const DEFAULT_AI_DIFFICULTY = 'hard';
 
 /** 부트스트랩 진입점. */
 function bootstrap() {
@@ -90,15 +65,28 @@ function bootstrap() {
   });
   session.start();
 
+  // AI 보드: 휴리스틱 봇이 별도 엔진 인스턴스를 구동(플레이어와 독립).
+  // 렌더/이펙트는 동일한 GameSession을 재사용한다(playfield·board-fx 재사용).
+  const aiSession = new GameSession({
+    canvas: mounts.ai.canvas,
+    fxCanvas: mounts.ai.fx,
+    surface: mounts.ai.surface,
+    overlay: mounts.ai.overlay,
+    ai: DEFAULT_AI_DIFFICULTY,
+    // 플레이어와 다른 보드 전개를 위해 시드를 분리한다.
+    seed: (((Date.now() >>> 0) ^ 0x9e3779b9) >>> 0) || 7,
+  });
+  aiSession.start();
+
   // 폰트가 늦게 로드돼도 색은 즉시 잡히지만, 안전하게 한 번 재해석한다.
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => session.refreshPalette());
+    document.fonts.ready.then(() => {
+      session.refreshPalette();
+      aiSession.refreshPalette();
+    });
   }
 
-  // AI 보드: 빈 보드만(후속 grain에서 AI/가비지 배선).
-  renderIdleBoard(mounts.ai.canvas);
-
-  const game = { mounts, player: session, ai: null };
+  const game = { mounts, player: session, ai: aiSession };
   window.__NEON_BLITZ__ = game;
   return game;
 }
