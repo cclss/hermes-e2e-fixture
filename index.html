@@ -51,6 +51,7 @@
       --text-size-xl:  1.5rem;
       --text-size-2xl: 2rem;
       --text-size-3xl: 3rem;
+      --text-size-4xl: 4rem;
 
       --font-weight-regular: 400;
       --font-weight-medium:  500;
@@ -80,6 +81,11 @@
       --text-label-line-height: var(--line-height-normal);
 
       --text-choice-icon-size: var(--text-size-3xl);
+
+      /* 카운트다운 텍스트 */
+      --text-countdown-size:           var(--text-size-4xl);
+      --text-countdown-weight:         var(--font-weight-black);
+      --text-countdown-letter-spacing: var(--letter-spacing-tight);
 
       /* ============================================================
          DESIGN TOKENS — Spacing
@@ -180,6 +186,7 @@
         --button-padding-block:  var(--spacing-5);
         --text-choice-icon-size: var(--text-size-2xl);
         --text-score-size:       var(--text-size-2xl);
+        --text-size-4xl:         2.5rem;
         --section-gap:           var(--spacing-8);
         --page-padding:          var(--spacing-4);
         --choice-group-gap:      var(--spacing-4);
@@ -599,6 +606,61 @@
     }
 
     /* ============================================================
+       COUNTDOWN STAGE
+       가위! → 바위! → 보! 카운트다운 텍스트 애니메이션 영역
+       result-banner 와 동일한 레이아웃 크기를 유지해 전환 시 레이아웃 이동 최소화
+    ============================================================ */
+    .countdown-stage {
+      display: none;
+      width: 100%;
+      min-height: calc(var(--spacing-12) + var(--spacing-4));
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-result-banner);
+      padding: var(--spacing-5) var(--spacing-6);
+      background-color: var(--color-bg-surface);
+      border: var(--border-width-thin) solid var(--color-border-default);
+    }
+
+    .countdown-stage.is-active {
+      display: flex;
+    }
+
+    /* result-banner는 카운트다운 중 숨김 처리 */
+    .result-banner.is-counting {
+      display: none;
+    }
+
+    .countdown-word {
+      font-family: var(--font-family-base);
+      font-size:   var(--text-countdown-size);
+      font-weight: var(--text-countdown-weight);
+      letter-spacing: var(--text-countdown-letter-spacing);
+      line-height: 1;
+      opacity: 0;
+    }
+
+    .countdown-word.is-entering {
+      animation: countdown-enter 150ms var(--easing-spring) forwards;
+    }
+
+    .countdown-word.is-exiting {
+      animation: countdown-exit 100ms var(--easing-in) forwards;
+    }
+
+    @keyframes countdown-enter {
+      0%   { opacity: 0; transform: scale(0.30) translateY(10px); }
+      55%  { opacity: 1; transform: scale(1.14) translateY(-3px); }
+      78%  { transform: scale(0.96); }
+      100% { opacity: 1; transform: scale(1)    translateY(0); }
+    }
+
+    @keyframes countdown-exit {
+      0%   { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.55) translateY(-8px); }
+    }
+
+    /* ============================================================
        CHOICE BUTTONS
     ============================================================ */
     .choice-group {
@@ -704,6 +766,12 @@
 
     .reset-button:active {
       transform: scale(0.95);
+    }
+
+    .reset-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
     }
 
     /* ============================================================
@@ -836,6 +904,17 @@
         </div>
       </section>
 
+      <!-- 카운트다운 스테이지 -->
+      <div
+        class="countdown-stage"
+        id="countdown-stage"
+        role="status"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        <span class="countdown-word" id="countdown-word" aria-hidden="true"></span>
+      </div>
+
       <!-- 결과 배너 -->
       <section
         class="result-banner"
@@ -929,12 +1008,15 @@
     const computerDisplay = document.getElementById('computer-display');
     const resultBanner    = document.getElementById('result-banner');
     const resultText      = document.getElementById('result-text');
+    const countdownStage  = document.getElementById('countdown-stage');
+    const countdownWord   = document.getElementById('countdown-word');
     const scoreWin        = document.getElementById('score-win');
     const scoreDraw       = document.getElementById('score-draw');
     const scoreLose       = document.getElementById('score-lose');
     const choiceButtons   = document.querySelectorAll('.choice-button');
     const modeBadge       = document.getElementById('mode-badge');
     const exitButton      = document.getElementById('btn-exit');
+    const resetButton     = document.getElementById('btn-reset');
 
     /* ============================================================
        SCREEN TRANSITIONS
@@ -1004,14 +1086,15 @@
 
     /* ============================================================
        COMPUTER CHOICE — fair vs unfair AI
+       순수 함수: 클로저(currentMode) 미사용, 외부에서 테스트 가능
     ============================================================ */
-    function getComputerChoice(playerChoice) {
-      if (currentMode === 'fair') {
+    function getComputerChoice(playerChoice, mode) {
+      if (mode === 'fair') {
         /* 공정: 완전 랜덤 */
         return CHOICES[Math.floor(Math.random() * CHOICES.length)];
       }
 
-      /* 불공정: 70% 확률로 이기는 패, 30%는 비기거나 지는 패 중 랜덤 */
+      /* 불공정: 70% 확률로 이기는 패, 30%는 비기거나 지는 패 중 50:50 랜덤 */
       if (Math.random() < 0.7) {
         return BEATS[playerChoice];
       }
@@ -1034,39 +1117,63 @@
     }
 
     /* ============================================================
-       REVEAL ANIMATION
-       Cycles through all 3 choices visually for ~400ms,
-       then "snaps" to the final computer choice.
+       COUNTDOWN ANIMATION
+       가위! → 바위! → 보! 세 단어를 순차적으로 pop-in/out.
+       각 단어 300ms (enter 150ms + hold 50ms + exit 100ms),
+       총 소요 시간 ≈ 900ms.
+       동시에 computer-display는 이모지를 고속 순환해 긴장감 연출.
     ============================================================ */
-    function revealComputerChoice(finalChoice) {
+    const COUNTDOWN_CONFIG = [
+      { text: '가위!', color: 'var(--color-choice-scissors)', glow: 'rgba(83,52,131,0.85)'  },
+      { text: '바위!', color: 'var(--color-choice-rock)',     glow: 'rgba(233,69,96,0.85)'  },
+      { text: '보!',   color: 'var(--color-choice-paper)',    glow: 'rgba(15,155,88,0.85)'  },
+    ];
+
+    function runCountdown() {
       return new Promise(resolve => {
-        const CYCLE_MS   = 80;   /* ≈ --duration-instant */
-        const TOTAL_MS   = 400;  /* ≈ --duration-slow    */
-        let   cycleIndex = 0;
-        let   elapsed    = 0;
+        const ENTER_MS = 150;
+        const HOLD_MS  =  50;
+        const EXIT_MS  = 100;
 
-        computerDisplay.classList.add('is-thinking');
+        /* Show countdown stage; hide result-banner (display:none swap) */
+        resultBanner.classList.add('is-counting');
+        countdownStage.classList.add('is-active');
 
-        const timer = setInterval(() => {
-          computerDisplay.textContent = EMOJI[CHOICES[cycleIndex % CHOICES.length]];
-          cycleIndex++;
-          elapsed += CYCLE_MS;
+        let idx = 0;
 
-          if (elapsed >= TOTAL_MS) {
-            clearInterval(timer);
-            computerDisplay.classList.remove('is-thinking');
+        function showWord() {
+          if (idx >= COUNTDOWN_CONFIG.length) {
+            countdownStage.classList.remove('is-active');
+            resultBanner.classList.remove('is-counting');
+            resolve();
+            return;
+          }
+
+          const { text, color, glow } = COUNTDOWN_CONFIG[idx];
+          countdownWord.textContent    = text;
+          countdownWord.style.color    = color;
+          countdownWord.style.textShadow =
+            `0 0 24px ${glow}, 0 0 52px ${glow}`;
+
+          /* Trigger enter animation (force reflow for re-trigger) */
+          countdownWord.classList.remove('is-exiting');
+          void countdownWord.offsetWidth;
+          countdownWord.classList.add('is-entering');
+
+          setTimeout(() => {
+            /* Trigger exit animation */
+            countdownWord.classList.remove('is-entering');
+            void countdownWord.offsetWidth;
+            countdownWord.classList.add('is-exiting');
 
             setTimeout(() => {
-              computerDisplay.textContent = EMOJI[finalChoice];
-              computerDisplay.classList.add('is-revealed');
-              computerDisplay.addEventListener(
-                'animationend',
-                () => { computerDisplay.classList.remove('is-revealed'); resolve(); },
-                { once: true }
-              );
-            }, 60);
-          }
-        }, CYCLE_MS);
+              idx++;
+              showWord();
+            }, EXIT_MS);
+          }, ENTER_MS + HOLD_MS);
+        }
+
+        showWord();
       });
     }
 
@@ -1114,7 +1221,8 @@
     ============================================================ */
     function setButtonsEnabled(enabled) {
       choiceButtons.forEach(btn => { btn.disabled = !enabled; });
-      exitButton.disabled = !enabled;
+      exitButton.disabled  = !enabled;
+      resetButton.disabled = !enabled;
     }
 
     /* ============================================================
@@ -1134,11 +1242,32 @@
         { once: true }
       );
 
-      /* Pick computer choice (hidden until reveal) */
-      const computerChoice = getComputerChoice(playerChoice);
+      /* Pick computer choice (resolved now, revealed after countdown) */
+      const computerChoice = getComputerChoice(playerChoice, currentMode);
 
-      /* Run cycling + reveal animation */
-      await revealComputerChoice(computerChoice);
+      /* Computer display: cycle through emojis to build suspense */
+      let cycleIdx = 0;
+      computerDisplay.classList.add('is-thinking');
+      const cycleTimer = setInterval(() => {
+        computerDisplay.textContent = EMOJI[CHOICES[cycleIdx % CHOICES.length]];
+        cycleIdx++;
+      }, 100);
+
+      /* Run 가위! → 바위! → 보! countdown (~900ms) */
+      await runCountdown();
+
+      /* Stop cycling and reveal the actual choice */
+      clearInterval(cycleTimer);
+      computerDisplay.classList.remove('is-thinking');
+      computerDisplay.textContent = EMOJI[computerChoice];
+      computerDisplay.classList.add('is-revealed');
+      await new Promise(resolve => {
+        computerDisplay.addEventListener(
+          'animationend',
+          () => { computerDisplay.classList.remove('is-revealed'); resolve(); },
+          { once: true }
+        );
+      });
 
       /* Judge, score, banner */
       const result = getResult(playerChoice, computerChoice);
@@ -1161,6 +1290,10 @@
       playerDisplay.textContent   = '🤔';
       computerDisplay.textContent = '🤔';
       computerDisplay.classList.remove('is-thinking', 'is-revealed');
+
+      /* Ensure countdown stage is cleaned up (guard for exit-during-play) */
+      countdownStage.classList.remove('is-active');
+      resultBanner.classList.remove('is-counting');
 
       resultBanner.className = 'result-banner';
       resultText.textContent = '선택지를 눌러 게임을 시작하세요';
