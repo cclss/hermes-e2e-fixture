@@ -175,6 +175,21 @@
       ============================================================ */
       --border-width-thin:   1px;
       --border-width-medium: 2px;
+
+      /* ============================================================
+         DESIGN TOKENS — Animation (grain-3 effects)
+      ============================================================ */
+      --duration-ripple:    500ms;   /* button ripple expand         */
+      --duration-pulse:    1500ms;   /* unfair badge danger pulse    */
+      --duration-confetti: 1200ms;   /* confetti particle flight     */
+      --duration-shake:    var(--duration-slow); /* defeat shake ≡ 400ms */
+
+      /* Glassmorphism */
+      --color-bg-glass: rgba(22, 33, 62, 0.70);
+
+      /* Title gradient & glow */
+      --gradient-title:    linear-gradient(135deg, var(--color-choice-rock) 0%, var(--color-choice-scissors) 50%, var(--color-choice-paper) 100%);
+      --filter-title-glow: drop-shadow(0 0 14px rgba(233, 69, 96, 0.55));
     }
 
     /* ============================================================
@@ -259,9 +274,18 @@
     .game-title {
       font-size: var(--text-size-2xl);
       font-weight: var(--font-weight-black);
-      color: var(--color-text-primary);
+      color: var(--color-text-primary); /* fallback & emoji colour */
       line-height: var(--line-height-tight);
       letter-spacing: var(--letter-spacing-tight);
+    }
+
+    /* 한글 텍스트에만 그라데이션 + 글로우 적용 (이모지 분리) */
+    .title-gradient {
+      background: var(--gradient-title);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: var(--filter-title-glow);
     }
 
     .game-subtitle {
@@ -416,6 +440,7 @@
     .mode-badge--unfair {
       color: var(--color-mode-unfair-accent);
       background-color: rgba(233, 69, 96, 0.12);
+      animation: unfair-pulse var(--duration-pulse) ease-in-out infinite;
     }
 
     /* ============================================================
@@ -426,7 +451,9 @@
       display: flex;
       justify-content: center;
       gap: var(--scoreboard-gap);
-      background-color: var(--color-bg-surface);
+      background: var(--color-bg-glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-radius: var(--radius-scoreboard);
       padding: var(--spacing-6);
       border: var(--border-width-thin) solid var(--color-border-default);
@@ -549,6 +576,8 @@
        RESULT BANNER
     ============================================================ */
     .result-banner {
+      position: relative;
+      overflow: visible; /* allow confetti to burst beyond banner edges */
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -671,6 +700,8 @@
     }
 
     .choice-button {
+      position: relative;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -819,6 +850,89 @@
       flex-wrap: wrap;
       justify-content: center;
     }
+
+    /* ============================================================
+       GRAIN-3 EFFECT — Unfair badge danger pulse
+    ============================================================ */
+    @keyframes unfair-pulse {
+      0%, 100% {
+        box-shadow: 0 0 6px rgba(233, 69, 96, 0.30);
+        opacity: 1;
+      }
+      50% {
+        box-shadow: 0 0 14px rgba(233, 69, 96, 0.85), 0 0 28px rgba(233, 69, 96, 0.45);
+        opacity: 0.88;
+      }
+    }
+
+    /* ============================================================
+       GRAIN-3 EFFECT — Button ripple
+    ============================================================ */
+    .ripple {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.45);
+      pointer-events: none;
+      will-change: transform, opacity;
+      animation: ripple-expand var(--duration-ripple) var(--easing-out) forwards;
+    }
+
+    @keyframes ripple-expand {
+      from {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0.6;
+      }
+      to {
+        transform: translate(-50%, -50%) scale(18);
+        opacity: 0;
+      }
+    }
+
+    /* ============================================================
+       GRAIN-3 EFFECT — Win confetti particles
+    ============================================================ */
+    .confetti-particle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      pointer-events: none;
+      will-change: transform;
+      opacity: 0; /* hidden until animation starts (fill-mode: forwards) */
+      animation: confetti-float var(--duration-confetti) var(--easing-out) forwards;
+    }
+
+    @keyframes confetti-float {
+      0% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(
+          calc(-50% + var(--tx, 0px)),
+          calc(-50% + var(--ty, -60px))
+        ) scale(0.3) rotate(var(--rot, 360deg));
+        opacity: 0;
+      }
+    }
+
+    /* ============================================================
+       GRAIN-3 EFFECT — Lose screen shake
+    ============================================================ */
+    @keyframes page-shake {
+      0%,  100% { transform: translateX(0); }
+      15%        { transform: translateX(-4px); }
+      30%        { transform: translateX(4px);  }
+      45%        { transform: translateX(-4px); }
+      60%        { transform: translateX(4px);  }
+      75%        { transform: translateX(-4px); }
+      90%        { transform: translateX(4px);  }
+    }
+
+    .is-shaking {
+      animation: page-shake var(--duration-shake) var(--easing-default);
+    }
   </style>
 </head>
 <body>
@@ -830,7 +944,7 @@
     <div class="page">
 
       <header class="game-header">
-        <h1 class="game-title">✊ 가위바위보 ✌️</h1>
+        <h1 class="game-title">✊ <span class="title-gradient">가위바위보</span> ✌️</h1>
         <p class="game-subtitle">컴퓨터와 끝없는 대전</p>
       </header>
 
@@ -871,7 +985,7 @@
 
       <!-- 헤더 + 모드 배지 -->
       <header class="game-header">
-        <h1 class="game-title">✊ 가위바위보 ✌️</h1>
+        <h1 class="game-title">✊ <span class="title-gradient">가위바위보</span> ✌️</h1>
         <span class="mode-badge mode-badge--fair" id="mode-badge">⚖️ 공정 모드</span>
       </header>
 
@@ -1193,9 +1307,90 @@
     }
 
     /* ============================================================
+       GRAIN-3 EFFECT — Button ripple (click-position aware)
+    ============================================================ */
+    function spawnRipple(btn, e) {
+      const rect = btn.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      ripple.style.left = (e.clientX - rect.left) + 'px';
+      ripple.style.top  = (e.clientY - rect.top)  + 'px';
+      btn.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+    }
+
+    /* ============================================================
+       GRAIN-3 EFFECT — Win confetti burst (CSS-animated, JS-injected)
+    ============================================================ */
+    function spawnConfetti() {
+      /* Clean up any leftover particles from a previous round */
+      resultBanner.querySelectorAll('.confetti-particle').forEach(p => p.remove());
+
+      const COLORS = [
+        '#e94560', /* rock red-pink */
+        '#533483', /* scissors purple */
+        '#0f9b58', /* paper green */
+        '#4caf50', /* win green */
+        '#64b5f6', /* cornflower blue */
+        '#ff9800', /* amber */
+        '#c084fc', /* violet */
+        '#ff6b6b', /* coral */
+      ];
+      const RADII = ['50%', '2px', '50%', '0', '50%', '3px', '50%', '0'];
+      const SIZES = [
+        [8, 8], [6, 10], [10, 10], [8, 6],
+        [6, 6], [10, 6], [8, 8], [12, 5],
+      ];
+
+      for (let i = 0; i < 8; i++) {
+        const particle = document.createElement('span');
+        particle.className = 'confetti-particle';
+
+        /* Spread evenly in 8 directions, biased slightly upward */
+        const angle    = (i / 8) * Math.PI * 2 - Math.PI / 2;
+        const distance = 50 + (i % 3) * 15; /* 50 / 65 / 80 px */
+        const tx  = Math.cos(angle) * distance;
+        const ty  = Math.sin(angle) * distance - 10;
+        const rot = (i % 2 === 0 ? 1 : -1) * (180 + i * 30);
+        const [w, h] = SIZES[i];
+
+        particle.style.width           = w + 'px';
+        particle.style.height          = h + 'px';
+        particle.style.backgroundColor = COLORS[i];
+        particle.style.borderRadius    = RADII[i];
+        particle.style.animationDelay  = (i * 50) + 'ms';
+        particle.style.setProperty('--tx',  tx.toFixed(1) + 'px');
+        particle.style.setProperty('--ty',  ty.toFixed(1) + 'px');
+        particle.style.setProperty('--rot', rot + 'deg');
+
+        resultBanner.appendChild(particle);
+        particle.addEventListener('animationend', () => particle.remove(), { once: true });
+      }
+    }
+
+    /* ============================================================
+       GRAIN-3 EFFECT — Lose screen shake
+    ============================================================ */
+    function triggerShake() {
+      const page = document.querySelector('#screen-game .page');
+      page.classList.add('is-shaking');
+      function onShakeEnd(e) {
+        /* Guard: ignore bubbled animationend from child elements */
+        if (e.animationName === 'page-shake') {
+          page.classList.remove('is-shaking');
+          page.removeEventListener('animationend', onShakeEnd);
+        }
+      }
+      page.addEventListener('animationend', onShakeEnd);
+    }
+
+    /* ============================================================
        RESULT BANNER — flash with semantic color
     ============================================================ */
     function showResult(result, computerChoice) {
+      /* Clean up leftover confetti from any previous round */
+      resultBanner.querySelectorAll('.confetti-particle').forEach(p => p.remove());
+
       const CONFIG = {
         win:  { text: `🎉 승리! — 컴퓨터: ${LABEL[computerChoice]}`,   mod: 'win'  },
         lose: { text: `😢 패배 — 컴퓨터: ${LABEL[computerChoice]}`,   mod: 'lose' },
@@ -1209,11 +1404,18 @@
       void resultBanner.offsetWidth;
       resultBanner.classList.add(`result-banner--${mod}`, 'result-banner--flash');
 
-      resultBanner.addEventListener(
-        'animationend',
-        () => resultBanner.classList.remove('result-banner--flash'),
-        { once: true }
-      );
+      /* Guard against confetti/shake animationend bubbling up to banner */
+      function onBannerFlashEnd(e) {
+        if (e.animationName === 'banner-flash') {
+          resultBanner.classList.remove('result-banner--flash');
+          resultBanner.removeEventListener('animationend', onBannerFlashEnd);
+        }
+      }
+      resultBanner.addEventListener('animationend', onBannerFlashEnd);
+
+      /* Trigger result-specific dramatic effects */
+      if (result === 'win')  spawnConfetti();
+      if (result === 'lose') triggerShake();
     }
 
     /* ============================================================
@@ -1287,6 +1489,10 @@
       scoreDraw.textContent = '0';
       scoreLose.textContent = '0';
 
+      /* Clean up any live confetti or shake state */
+      resultBanner.querySelectorAll('.confetti-particle').forEach(p => p.remove());
+      document.querySelector('#screen-game .page').classList.remove('is-shaking');
+
       playerDisplay.textContent   = '🤔';
       computerDisplay.textContent = '🤔';
       computerDisplay.classList.remove('is-thinking', 'is-revealed');
@@ -1306,10 +1512,16 @@
     /* ============================================================
        EVENT BINDING
     ============================================================ */
-    document.getElementById('btn-rock')    .addEventListener('click', () => play('rock'));
-    document.getElementById('btn-paper')   .addEventListener('click', () => play('paper'));
-    document.getElementById('btn-scissors').addEventListener('click', () => play('scissors'));
-    document.getElementById('btn-reset')   .addEventListener('click', resetGame);
+    document.getElementById('btn-rock').addEventListener('click', function(e) {
+      spawnRipple(this, e); play('rock');
+    });
+    document.getElementById('btn-paper').addEventListener('click', function(e) {
+      spawnRipple(this, e); play('paper');
+    });
+    document.getElementById('btn-scissors').addEventListener('click', function(e) {
+      spawnRipple(this, e); play('scissors');
+    });
+    document.getElementById('btn-reset').addEventListener('click', resetGame);
   </script>
 </body>
 </html>
