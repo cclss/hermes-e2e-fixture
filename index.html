@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>가위바위보</title>
+  <style>
+    /* ============================================================
+       DESIGN TOKENS — Color
+    ============================================================ */
+    :root {
+      /* 배경 */
+      --color-bg-page:     #1a1a2e;
+      --color-bg-surface:  #16213e;
+      --color-bg-elevated: #0f3460;
+
+      /* 텍스트 */
+      --color-text-primary:   #e0e0e0;
+      --color-text-secondary: #a0a0b0;
+      --color-text-on-accent: #ffffff;
+
+      /* 선택지 강조 */
+      --color-choice-rock:          #e94560;
+      --color-choice-scissors:      #533483;
+      --color-choice-paper:         #0f9b58;
+      --color-choice-hover-ring:    rgba(255, 255, 255, 0.25);
+      --color-choice-selected-ring: rgba(255, 255, 255, 0.70);
+
+      /* 승/패/무 시맨틱 */
+      --color-win:  #4caf50;
+      --color-lose: #f44336;
+      --color-draw: #ff9800;
+
+      /* 테두리 및 보조 */
+      --color-border-default: rgba(255, 255, 255, 0.12);
+      --color-overlay:        rgba(0, 0, 0, 0.40);
+
+      /* ============================================================
+         DESIGN TOKENS — Typography
+      ============================================================ */
+      --font-family-base: 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+      --text-size-xs:  0.75rem;
+      --text-size-sm:  0.875rem;
+      --text-size-md:  1rem;
+      --text-size-lg:  1.25rem;
+      --text-size-xl:  1.5rem;
+      --text-size-2xl: 2rem;
+      --text-size-3xl: 3rem;
+
+      --font-weight-regular: 400;
+      --font-weight-medium:  500;
+      --font-weight-bold:    700;
+      --font-weight-black:   900;
+
+      --line-height-tight:  1.2;
+      --line-height-normal: 1.5;
+      --line-height-loose:  1.8;
+
+      --letter-spacing-tight:  -0.02em;
+      --letter-spacing-normal: 0em;
+      --letter-spacing-wide:   0.05em;
+      --letter-spacing-caps:   0.08em;
+
+      /* 역할별 매핑 */
+      --text-score-size:        var(--text-size-3xl);
+      --text-score-weight:      var(--font-weight-black);
+      --text-score-line-height: var(--line-height-tight);
+
+      --text-result-size:        var(--text-size-xl);
+      --text-result-weight:      var(--font-weight-bold);
+      --text-result-line-height: var(--line-height-tight);
+
+      --text-label-size:        var(--text-size-sm);
+      --text-label-weight:      var(--font-weight-medium);
+      --text-label-line-height: var(--line-height-normal);
+
+      --text-choice-icon-size: var(--text-size-3xl);
+
+      /* ============================================================
+         DESIGN TOKENS — Spacing
+      ============================================================ */
+      --spacing-1:  4px;
+      --spacing-2:  8px;
+      --spacing-3:  12px;
+      --spacing-4:  16px;
+      --spacing-5:  20px;
+      --spacing-6:  24px;
+      --spacing-8:  32px;
+      --spacing-10: 40px;
+      --spacing-12: 48px;
+      --spacing-16: 64px;
+
+      /* 역할별 매핑 */
+      --button-padding-inline: var(--spacing-8);
+      --button-padding-block:  var(--spacing-8);
+      --section-gap:           var(--spacing-12);
+      --page-padding:          var(--spacing-6);
+      --choice-group-gap:      var(--spacing-6);
+      --scoreboard-gap:        var(--spacing-8);
+      --score-item-gap:        var(--spacing-2);
+      --result-content-gap:    var(--spacing-4);
+
+      /* ============================================================
+         DESIGN TOKENS — Shadow
+      ============================================================ */
+      --shadow-none: none;
+      --shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.30);
+      --shadow-md:   0 4px 16px rgba(0, 0, 0, 0.40);
+      --shadow-lg:   0 8px 32px rgba(0, 0, 0, 0.50);
+
+      --shadow-choice-hover-rock:     0 0 20px rgba(233, 69, 96, 0.60);
+      --shadow-choice-hover-scissors: 0 0 20px rgba(83, 52, 131, 0.70);
+      --shadow-choice-hover-paper:    0 0 20px rgba(15, 155, 88, 0.60);
+      --shadow-choice-selected:       0 0 28px rgba(255, 255, 255, 0.40);
+
+      --shadow-result-win:  0 0 24px rgba(76, 175, 80, 0.50);
+      --shadow-result-lose: 0 0 24px rgba(244, 67, 54, 0.50);
+      --shadow-result-draw: 0 0 24px rgba(255, 152, 0, 0.50);
+
+      /* ============================================================
+         DESIGN TOKENS — Transition
+      ============================================================ */
+      --duration-instant: 80ms;
+      --duration-fast:    150ms;
+      --duration-normal:  250ms;
+      --duration-slow:    400ms;
+      --duration-reveal:  600ms;
+
+      --easing-default: ease;
+      --easing-in:      ease-in;
+      --easing-out:     ease-out;
+      --easing-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+      --easing-smooth:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+      --transition-choice-hover:  var(--duration-fast) var(--easing-out);
+      --transition-choice-select: var(--duration-normal) var(--easing-spring);
+      --transition-reveal:        var(--duration-reveal) var(--easing-smooth);
+      --transition-score:         var(--duration-slow) var(--easing-out);
+
+      /* ============================================================
+         DESIGN TOKENS — Radius
+      ============================================================ */
+      --radius-none: 0px;
+      --radius-sm:   4px;
+      --radius-md:   8px;
+      --radius-lg:   16px;
+      --radius-xl:   24px;
+      --radius-full: 9999px;
+
+      /* 역할별 매핑 */
+      --radius-choice-button: var(--radius-full);
+      --radius-result-banner: var(--radius-xl);
+      --radius-scoreboard:    var(--radius-lg);
+      --radius-score-item:    var(--radius-md);
+
+      /* ============================================================
+         DESIGN TOKENS — Border
+      ============================================================ */
+      --border-width-thin:   1px;
+      --border-width-medium: 2px;
+    }
+
+    /* ============================================================
+       RESPONSIVE OVERRIDES — Small Mobile (≤ 420px)
+    ============================================================ */
+    @media (max-width: 420px) {
+      :root {
+        --button-padding-inline: var(--spacing-5);
+        --button-padding-block:  var(--spacing-5);
+        --text-choice-icon-size: var(--text-size-2xl);
+        --text-score-size:       var(--text-size-2xl);
+        --section-gap:           var(--spacing-8);
+        --page-padding:          var(--spacing-4);
+        --choice-group-gap:      var(--spacing-4);
+      }
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family-base);
+      background-color: var(--color-bg-page);
+      color: var(--color-text-primary);
+      line-height: var(--line-height-normal);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ============================================================
+       PAGE LAYOUT
+    ============================================================ */
+    .page {
+      width: 100%;
+      max-width: 640px;
+      padding-inline: var(--page-padding);
+      padding-block: var(--spacing-8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--section-gap);
+    }
+
+    /* ============================================================
+       GAME HEADER
+    ============================================================ */
+    .game-header {
+      text-align: center;
+    }
+
+    .game-title {
+      font-size: var(--text-size-2xl);
+      font-weight: var(--font-weight-black);
+      color: var(--color-text-primary);
+      line-height: var(--line-height-tight);
+      letter-spacing: var(--letter-spacing-tight);
+    }
+
+    /* ============================================================
+       SCOREBOARD
+    ============================================================ */
+    .scoreboard {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: var(--scoreboard-gap);
+      background-color: var(--color-bg-surface);
+      border-radius: var(--radius-scoreboard);
+      padding: var(--spacing-6);
+      border: var(--border-width-thin) solid var(--color-border-default);
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--score-item-gap);
+      flex: 1;
+    }
+
+    .score-label {
+      font-size: var(--text-label-size);
+      font-weight: var(--text-label-weight);
+      line-height: var(--text-label-line-height);
+      color: var(--color-text-secondary);
+      letter-spacing: var(--letter-spacing-caps);
+      text-transform: uppercase;
+    }
+
+    .score-number {
+      font-size: var(--text-score-size);
+      font-weight: var(--text-score-weight);
+      line-height: var(--text-score-line-height);
+    }
+
+    .score-item--win  .score-number { color: var(--color-win);  }
+    .score-item--draw .score-number { color: var(--color-draw); }
+    .score-item--lose .score-number { color: var(--color-lose); }
+
+    @keyframes score-bounce {
+      0%   { transform: scale(1); }
+      25%  { transform: scale(1.45); }
+      55%  { transform: scale(0.88); }
+      80%  { transform: scale(1.1);  }
+      100% { transform: scale(1);   }
+    }
+
+    .score-number.bounce {
+      animation: score-bounce var(--duration-slow) var(--easing-out);
+    }
+
+    /* ============================================================
+       GAME ARENA
+    ============================================================ */
+    .game-arena {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-6);
+      background-color: var(--color-bg-surface);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-8) var(--page-padding);
+      border: var(--border-width-thin) solid var(--color-border-default);
+    }
+
+    .player-section,
+    .computer-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-3);
+      flex: 1;
+    }
+
+    .section-title {
+      font-size: var(--text-label-size);
+      font-weight: var(--text-label-weight);
+      line-height: var(--text-label-line-height);
+      color: var(--color-text-secondary);
+      letter-spacing: var(--letter-spacing-caps);
+      text-transform: uppercase;
+    }
+
+    .choice-display {
+      font-size: var(--text-choice-icon-size);
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-5);
+      background-color: var(--color-bg-elevated);
+      border-radius: var(--radius-full);
+      border: var(--border-width-medium) solid var(--color-border-default);
+      aspect-ratio: 1;
+      min-width: calc(var(--text-choice-icon-size) + var(--spacing-10));
+    }
+
+    .choice-display.is-thinking {
+      animation: thinking-blink calc(var(--duration-instant) * 2) var(--easing-default) infinite;
+    }
+
+    .choice-display.is-revealed {
+      animation: choice-reveal var(--duration-normal) var(--easing-spring) forwards;
+    }
+
+    @keyframes thinking-blink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.3; transform: scale(0.82); }
+    }
+
+    @keyframes choice-reveal {
+      0%   { transform: scale(0.5); opacity: 0; }
+      60%  { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    .vs-separator {
+      font-size: var(--text-size-lg);
+      font-weight: var(--font-weight-black);
+      color: var(--color-text-secondary);
+      letter-spacing: var(--letter-spacing-wide);
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       RESULT BANNER
+    ============================================================ */
+    .result-banner {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--result-content-gap);
+      border-radius: var(--radius-result-banner);
+      padding: var(--spacing-5) var(--spacing-6);
+      background-color: var(--color-bg-surface);
+      border: var(--border-width-thin) solid var(--color-border-default);
+      min-height: calc(var(--spacing-12) + var(--spacing-4));
+      transition:
+        box-shadow var(--transition-reveal),
+        border-color var(--transition-reveal);
+    }
+
+    .result-text {
+      font-size: var(--text-result-size);
+      font-weight: var(--text-result-weight);
+      line-height: var(--text-result-line-height);
+      color: var(--color-text-secondary);
+      text-align: center;
+      transition: color var(--transition-reveal);
+    }
+
+    /* 승/패/무 상태 */
+    .result-banner--win {
+      box-shadow: var(--shadow-result-win);
+      border-color: var(--color-win);
+    }
+    .result-banner--win .result-text { color: var(--color-win); }
+
+    .result-banner--lose {
+      box-shadow: var(--shadow-result-lose);
+      border-color: var(--color-lose);
+    }
+    .result-banner--lose .result-text { color: var(--color-lose); }
+
+    .result-banner--draw {
+      box-shadow: var(--shadow-result-draw);
+      border-color: var(--color-draw);
+    }
+    .result-banner--draw .result-text { color: var(--color-draw); }
+
+    /* 플래시 애니메이션 */
+    @keyframes banner-flash {
+      0%   {
+        opacity: 0.6;
+        transform: translateY(calc(-1 * var(--spacing-2))) scale(0.97);
+      }
+      60%  { transform: translateY(0) scale(1.02); opacity: 1; }
+      100% { transform: translateY(0) scale(1);    opacity: 1; }
+    }
+
+    .result-banner--flash {
+      animation: banner-flash var(--duration-normal) var(--easing-spring) forwards;
+    }
+
+    /* ============================================================
+       CHOICE BUTTONS
+    ============================================================ */
+    .choice-group {
+      display: flex;
+      gap: var(--choice-group-gap);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .choice-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-2);
+      padding: var(--button-padding-block) var(--button-padding-inline);
+      border: var(--border-width-medium) solid var(--color-border-default);
+      border-radius: var(--radius-choice-button);
+      background-color: var(--color-bg-elevated);
+      color: var(--color-text-primary);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition:
+        transform var(--transition-choice-hover),
+        box-shadow var(--transition-choice-hover),
+        border-color var(--transition-choice-hover);
+    }
+
+    /* 각 선택지 기본 강조색 적용 */
+    .choice-button--rock     { border-color: var(--color-choice-rock); }
+    .choice-button--scissors { border-color: var(--color-choice-scissors); }
+    .choice-button--paper    { border-color: var(--color-choice-paper); }
+
+    /* 호버 — scale + glow */
+    .choice-button--rock:hover,
+    .choice-button--rock:focus-visible {
+      transform: scale(1.1);
+      box-shadow: var(--shadow-choice-hover-rock), var(--shadow-md);
+      border-color: var(--color-choice-hover-ring);
+    }
+
+    .choice-button--scissors:hover,
+    .choice-button--scissors:focus-visible {
+      transform: scale(1.1);
+      box-shadow: var(--shadow-choice-hover-scissors), var(--shadow-md);
+      border-color: var(--color-choice-hover-ring);
+    }
+
+    .choice-button--paper:hover,
+    .choice-button--paper:focus-visible {
+      transform: scale(1.1);
+      box-shadow: var(--shadow-choice-hover-paper), var(--shadow-md);
+      border-color: var(--color-choice-hover-ring);
+    }
+
+    /* 누름(active) — scale down */
+    .choice-button:active {
+      transform: scale(0.92);
+      box-shadow: var(--shadow-none);
+    }
+
+    /* 비활성 상태 */
+    .choice-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .choice-icon {
+      font-size: var(--text-choice-icon-size);
+      line-height: 1;
+    }
+
+    .choice-label {
+      font-size: var(--text-label-size);
+      font-weight: var(--text-label-weight);
+      line-height: var(--text-label-line-height);
+      color: var(--color-text-secondary);
+      letter-spacing: var(--letter-spacing-wide);
+    }
+
+    /* ============================================================
+       RESET BUTTON
+    ============================================================ */
+    .reset-button {
+      font-family: var(--font-family-base);
+      font-size: var(--text-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-secondary);
+      background: transparent;
+      border: var(--border-width-thin) solid var(--color-border-default);
+      border-radius: var(--radius-full);
+      padding: var(--spacing-2) var(--spacing-6);
+      cursor: pointer;
+      letter-spacing: var(--letter-spacing-wide);
+      transition:
+        color var(--transition-choice-hover),
+        border-color var(--transition-choice-hover),
+        transform var(--transition-choice-hover);
+    }
+
+    .reset-button:hover {
+      color: var(--color-text-primary);
+      border-color: var(--color-text-secondary);
+    }
+
+    .reset-button:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- 헤더 -->
+    <header class="game-header">
+      <h1 class="game-title">✊ 가위바위보 ✌️</h1>
+    </header>
+
+    <!-- 점수판 -->
+    <section class="scoreboard" aria-label="점수판">
+      <div class="score-item score-item--win">
+        <span class="score-label">승</span>
+        <span class="score-number" id="score-win">0</span>
+      </div>
+      <div class="score-item score-item--draw">
+        <span class="score-label">무</span>
+        <span class="score-number" id="score-draw">0</span>
+      </div>
+      <div class="score-item score-item--lose">
+        <span class="score-label">패</span>
+        <span class="score-number" id="score-lose">0</span>
+      </div>
+    </section>
+
+    <!-- 게임 화면 -->
+    <section class="game-arena" aria-label="게임 화면">
+      <div class="player-section">
+        <h2 class="section-title">나</h2>
+        <div class="choice-display" id="player-display" aria-label="플레이어 선택">🤔</div>
+      </div>
+      <div class="vs-separator" aria-hidden="true">VS</div>
+      <div class="computer-section">
+        <h2 class="section-title">컴퓨터</h2>
+        <div class="choice-display" id="computer-display" aria-label="컴퓨터 선택">🤔</div>
+      </div>
+    </section>
+
+    <!-- 결과 배너 -->
+    <section
+      class="result-banner"
+      id="result-banner"
+      aria-live="polite"
+      aria-label="라운드 결과"
+    >
+      <p class="result-text" id="result-text">선택지를 눌러 게임을 시작하세요</p>
+    </section>
+
+    <!-- 선택 버튼 -->
+    <section class="choice-group" aria-label="선택지">
+      <button
+        class="choice-button choice-button--rock"
+        id="btn-rock"
+        aria-label="바위 선택"
+      >
+        <span class="choice-icon" aria-hidden="true">✊</span>
+        <span class="choice-label">바위</span>
+      </button>
+      <button
+        class="choice-button choice-button--paper"
+        id="btn-paper"
+        aria-label="보 선택"
+      >
+        <span class="choice-icon" aria-hidden="true">🖐️</span>
+        <span class="choice-label">보</span>
+      </button>
+      <button
+        class="choice-button choice-button--scissors"
+        id="btn-scissors"
+        aria-label="가위 선택"
+      >
+        <span class="choice-icon" aria-hidden="true">✌️</span>
+        <span class="choice-label">가위</span>
+      </button>
+    </section>
+
+    <!-- 점수 초기화 -->
+    <button class="reset-button" id="btn-reset">점수 초기화</button>
+
+  </div>
+
+  <script>
+    /* ============================================================
+       GAME DATA
+    ============================================================ */
+    const CHOICES = ['rock', 'paper', 'scissors'];
+
+    const EMOJI = {
+      rock:     '✊',
+      paper:    '🖐️',
+      scissors: '✌️',
+    };
+
+    const LABEL = {
+      rock:     '바위',
+      paper:    '보',
+      scissors: '가위',
+    };
+
+    /* ============================================================
+       STATE
+    ============================================================ */
+    const score = { win: 0, draw: 0, lose: 0 };
+    let isPlaying = false;
+
+    /* ============================================================
+       DOM REFERENCES
+    ============================================================ */
+    const playerDisplay   = document.getElementById('player-display');
+    const computerDisplay = document.getElementById('computer-display');
+    const resultBanner    = document.getElementById('result-banner');
+    const resultText      = document.getElementById('result-text');
+    const scoreWin        = document.getElementById('score-win');
+    const scoreDraw       = document.getElementById('score-draw');
+    const scoreLose       = document.getElementById('score-lose');
+    const choiceButtons   = document.querySelectorAll('.choice-button');
+
+    /* ============================================================
+       GAME LOGIC — Judgment (9 combinations)
+       rock beats scissors
+       scissors beats paper
+       paper beats rock
+    ============================================================ */
+    function getComputerChoice() {
+      return CHOICES[Math.floor(Math.random() * 3)];
+    }
+
+    function getResult(player, computer) {
+      if (player === computer) return 'draw';
+      if (
+        (player === 'rock'     && computer === 'scissors') ||
+        (player === 'scissors' && computer === 'paper')    ||
+        (player === 'paper'    && computer === 'rock')
+      ) return 'win';
+      return 'lose';
+    }
+
+    /* ============================================================
+       REVEAL ANIMATION
+       Cycles through all 3 choices visually for ~400ms,
+       then "snaps" to the final computer choice.
+    ============================================================ */
+    function revealComputerChoice(finalChoice) {
+      return new Promise(resolve => {
+        const CYCLE_MS    = 80;   /* ≈ --duration-instant */
+        const TOTAL_MS    = 400;  /* ≈ --duration-slow    */
+        let   cycleIndex  = 0;
+        let   elapsed     = 0;
+
+        computerDisplay.classList.add('is-thinking');
+
+        const timer = setInterval(() => {
+          computerDisplay.textContent = EMOJI[CHOICES[cycleIndex % CHOICES.length]];
+          cycleIndex++;
+          elapsed += CYCLE_MS;
+
+          if (elapsed >= TOTAL_MS) {
+            clearInterval(timer);
+            computerDisplay.classList.remove('is-thinking');
+
+            /* Brief pause before the reveal pop */
+            setTimeout(() => {
+              computerDisplay.textContent = EMOJI[finalChoice];
+              computerDisplay.classList.add('is-revealed');
+              computerDisplay.addEventListener(
+                'animationend',
+                () => { computerDisplay.classList.remove('is-revealed'); resolve(); },
+                { once: true }
+              );
+            }, 60);
+          }
+        }, CYCLE_MS);
+      });
+    }
+
+    /* ============================================================
+       SCORE UPDATE — with bounce animation
+    ============================================================ */
+    function updateScore(result) {
+      score[result]++;
+
+      const el = { win: scoreWin, draw: scoreDraw, lose: scoreLose }[result];
+      el.textContent = score[result];
+
+      /* Restart animation by forcing reflow */
+      el.classList.remove('bounce');
+      void el.offsetWidth;
+      el.classList.add('bounce');
+      el.addEventListener('animationend', () => el.classList.remove('bounce'), { once: true });
+    }
+
+    /* ============================================================
+       RESULT BANNER — flash with semantic color
+    ============================================================ */
+    function showResult(result, computerChoice) {
+      const CONFIG = {
+        win:  { text: `🎉 승리! — 컴퓨터: ${LABEL[computerChoice]}`,   mod: 'win'  },
+        lose: { text: `😢 패배 — 컴퓨터: ${LABEL[computerChoice]}`,   mod: 'lose' },
+        draw: { text: `🤝 무승부 — 컴퓨터: ${LABEL[computerChoice]}`, mod: 'draw' },
+      };
+
+      const { text, mod } = CONFIG[result];
+      resultText.textContent = text;
+
+      /* Remove all modifier classes, force reflow, then re-add for flash */
+      resultBanner.className = 'result-banner';
+      void resultBanner.offsetWidth;
+      resultBanner.classList.add(`result-banner--${mod}`, 'result-banner--flash');
+
+      resultBanner.addEventListener(
+        'animationend',
+        () => resultBanner.classList.remove('result-banner--flash'),
+        { once: true }
+      );
+    }
+
+    /* ============================================================
+       BUTTONS ENABLE / DISABLE
+    ============================================================ */
+    function setButtonsEnabled(enabled) {
+      choiceButtons.forEach(btn => { btn.disabled = !enabled; });
+    }
+
+    /* ============================================================
+       MAIN PLAY FLOW
+    ============================================================ */
+    async function play(playerChoice) {
+      if (isPlaying) return;
+      isPlaying = true;
+      setButtonsEnabled(false);
+
+      /* Show player choice immediately with reveal animation */
+      playerDisplay.textContent = EMOJI[playerChoice];
+      playerDisplay.classList.add('is-revealed');
+      playerDisplay.addEventListener(
+        'animationend',
+        () => playerDisplay.classList.remove('is-revealed'),
+        { once: true }
+      );
+
+      /* Pick computer choice (kept secret until reveal) */
+      const computerChoice = getComputerChoice();
+
+      /* Run cycling + reveal animation (≥ 300ms guaranteed) */
+      await revealComputerChoice(computerChoice);
+
+      /* Judge result, update score, show banner */
+      const result = getResult(playerChoice, computerChoice);
+      updateScore(result);
+      showResult(result, computerChoice);
+
+      setButtonsEnabled(true);
+      isPlaying = false;
+    }
+
+    /* ============================================================
+       RESET
+    ============================================================ */
+    function resetGame() {
+      score.win = score.draw = score.lose = 0;
+      scoreWin.textContent  = '0';
+      scoreDraw.textContent = '0';
+      scoreLose.textContent = '0';
+
+      playerDisplay.textContent   = '🤔';
+      computerDisplay.textContent = '🤔';
+      computerDisplay.classList.remove('is-thinking', 'is-revealed');
+
+      resultBanner.className     = 'result-banner';
+      resultText.textContent     = '선택지를 눌러 게임을 시작하세요';
+      resultText.style.color     = '';
+    }
+
+    /* ============================================================
+       EVENT BINDING
+    ============================================================ */
+    document.getElementById('btn-rock')    .addEventListener('click', () => play('rock'));
+    document.getElementById('btn-paper')   .addEventListener('click', () => play('paper'));
+    document.getElementById('btn-scissors').addEventListener('click', () => play('scissors'));
+    document.getElementById('btn-reset')   .addEventListener('click', resetGame);
+  </script>
+</body>
+</html>
