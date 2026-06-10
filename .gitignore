@@ -1,0 +1,21 @@
+# Charlie baseline (auto-added)
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+dist/
+build/
+out/
+target/
+*.exe
+*.so
+*.dylib
+.vscode/
+.idea/
+*.swp
+.DS_Store
+*.log
+*.tmp
+.env
+.env.local
+.env.*.local
