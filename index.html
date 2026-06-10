@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello, World</title>
+  <style>
+    /* Token Group: Color — Base */
+    :root {
+      --color-bg-page: #ffffff;
+      --color-text-primary: #111827;
+    }
+
+    /* Token Group: Typography — Base */
+    :root {
+      --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-size-heading-xl: 3rem;
+      --font-line-height-heading: 1.2;
+      --font-weight-heading: 700;
+    }
+
+    /* Token Group: Spacing — Base */
+    :root {
+      --space-page-padding: 2rem;
+    }
+
+    /* Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-page-padding);
+      background-color: var(--color-bg-page);
+      font-family: var(--font-family-base);
+    }
+
+    h1 {
+      color: var(--color-text-primary);
+      font-size: var(--font-size-heading-xl);
+      font-weight: var(--font-weight-heading);
+      line-height: var(--font-line-height-heading);
+    }
+  </style>
+</head>
+<body>
+  <h1>Hello, World</h1>
+</body>
+</html>
