@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>가위바위보</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens (CSS Custom Properties) ─── */
+    :root {
+      /* color / background */
+      --bg-base:             #0a0a0f;
+      --bg-surface:          #0d0d1a;
+      --bg-glass:            rgba(255,255,255,0.06);
+      --bg-glass-hover:      rgba(255,255,255,0.10);
+      --bg-glass-active:     rgba(255,255,255,0.14);
+      --bg-overlay:          rgba(10,10,15,0.85);
+
+      /* color / accent */
+      --accent-primary:        #7c3aed;
+      --accent-primary-light:  #a78bfa;
+      --accent-primary-dim:    rgba(124,58,237,0.35);
+      --accent-secondary:      #ec4899;
+      --accent-secondary-light:#f9a8d4;
+      --accent-secondary-dim:  rgba(236,72,153,0.35);
+      --accent-tertiary:       #06b6d4;
+
+      /* color / gradient */
+      --gradient-hero:     linear-gradient(135deg,#7c3aed 0%,#ec4899 100%);
+      --gradient-cta:      linear-gradient(135deg,#a78bfa 0%,#f472b6 100%);
+      --gradient-glow-bg:  radial-gradient(ellipse at 50% 0%,rgba(124,58,237,0.25) 0%,transparent 60%);
+
+      /* color / game state */
+      --state-win:         #10b981;
+      --state-win-bg:      rgba(16,185,129,0.15);
+      --state-win-border:  rgba(16,185,129,0.4);
+      --state-lose:        #f43f5e;
+      --state-lose-bg:     rgba(244,63,94,0.15);
+      --state-lose-border: rgba(244,63,94,0.4);
+      --state-tie:         #f59e0b;
+      --state-tie-bg:      rgba(245,158,11,0.15);
+      --state-tie-border:  rgba(245,158,11,0.4);
+
+      /* color / text */
+      --text-primary:   #ffffff;
+      --text-secondary: rgba(255,255,255,0.70);
+      --text-muted:     rgba(255,255,255,0.40);
+      --text-disabled:  rgba(255,255,255,0.20);
+
+      /* color / border */
+      --border-glass:          rgba(255,255,255,0.10);
+      --border-glass-strong:   rgba(255,255,255,0.20);
+      --border-accent:         rgba(124,58,237,0.50);
+      --border-top-highlight:  rgba(255,255,255,0.15);
+
+      /* typography */
+      --font-display: 'Noto Sans KR', -apple-system, sans-serif;
+      --font-body:    'Noto Sans KR', -apple-system, sans-serif;
+
+      --text-size-display: 72px;
+      --text-size-hero:    56px;
+      --text-size-h1:      40px;
+      --text-size-h2:      28px;
+      --text-size-h3:      20px;
+      --text-size-lg:      18px;
+      --text-size-md:      16px;
+      --text-size-sm:      14px;
+      --text-size-xs:      12px;
+      --text-size-emoji:   56px;
+
+      --text-weight-black:    900;
+      --text-weight-extrabold:800;
+      --text-weight-bold:     700;
+      --text-weight-semibold: 600;
+      --text-weight-medium:   500;
+      --text-weight-regular:  400;
+
+      --text-leading-tight:  1.1;
+      --text-leading-snug:   1.25;
+      --text-leading-normal: 1.5;
+
+      --text-tracking-tight:   -0.03em;
+      --text-tracking-snug:    -0.01em;
+      --text-tracking-normal:  0em;
+      --text-tracking-wide:    0.05em;
+      --text-tracking-widest:  0.12em;
+
+      /* spacing */
+      --space-1:  4px;
+      --space-2:  8px;
+      --space-3:  12px;
+      --space-4:  16px;
+      --space-5:  20px;
+      --space-6:  24px;
+      --space-8:  32px;
+      --space-10: 40px;
+      --space-12: 48px;
+      --space-16: 64px;
+      --space-20: 80px;
+      --space-24: 96px;
+      --space-32: 128px;
+
+      /* radius */
+      --radius-sm:   8px;
+      --radius-md:   12px;
+      --radius-lg:   16px;
+      --radius-xl:   24px;
+      --radius-2xl:  32px;
+      --radius-full: 9999px;
+
+      /* shadow */
+      --glow-primary:   0 0 16px rgba(124,58,237,0.55), 0 0 48px rgba(124,58,237,0.20);
+      --glow-secondary: 0 0 16px rgba(236,72,153,0.55), 0 0 48px rgba(236,72,153,0.20);
+      --glow-win:       0 0 16px rgba(16,185,129,0.55),  0 0 48px rgba(16,185,129,0.20);
+      --glow-lose:      0 0 16px rgba(244,63,94,0.55),   0 0 48px rgba(244,63,94,0.20);
+      --glow-tie:       0 0 16px rgba(245,158,11,0.55),  0 0 48px rgba(245,158,11,0.20);
+
+      --shadow-glass:          0 8px 32px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.10);
+      --shadow-card:           0 20px 60px rgba(0,0,0,0.70);
+      --shadow-button-default: 0 4px 16px rgba(0,0,0,0.40);
+      --shadow-button-accent:  0 4px 24px rgba(124,58,237,0.50);
+      --shadow-button-hover:   0 6px 32px rgba(124,58,237,0.65);
+
+      /* transition */
+      --duration-instant:        100ms;
+      --duration-fast:           200ms;
+      --duration-normal:         300ms;
+      --duration-slow:           500ms;
+      --duration-slower:         700ms;
+      --duration-countdown-beat: 800ms;
+
+      --ease-standard:   cubic-bezier(0.4,0,0.2,1);
+      --ease-decelerate: cubic-bezier(0,0,0.2,1);
+      --ease-accelerate: cubic-bezier(0.4,0,1,1);
+      --ease-spring:     cubic-bezier(0.34,1.56,0.64,1);
+      --ease-bounce:     cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-body);
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Screens ─── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: var(--space-8) var(--space-6);
+      position: relative;
+      overflow: hidden;
+    }
+    .screen.active { display: flex; }
+
+    /* background glow decor */
+    .screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient-glow-bg);
+      pointer-events: none;
+    }
+
+    /* ─── StartScreen ─── */
+    #start-screen {
+      gap: var(--space-10);
+    }
+
+    .start-title {
+      font-family: var(--font-display);
+      font-size: clamp(var(--text-size-h1), 10vw, var(--text-size-hero));
+      font-weight: var(--text-weight-black);
+      letter-spacing: var(--text-tracking-tight);
+      line-height: var(--text-leading-tight);
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      filter: drop-shadow(0 0 24px rgba(124,58,237,0.45));
+    }
+
+    .start-subtitle {
+      font-size: var(--text-size-md);
+      font-weight: var(--text-weight-medium);
+      color: var(--text-muted);
+      letter-spacing: var(--text-tracking-wide);
+      text-align: center;
+      margin-top: calc(-1 * var(--space-8));
+    }
+
+    /* Mode Selector */
+    .mode-selector {
+      display: flex;
+      gap: var(--space-4);
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .mode-card {
+      flex: 1;
+      padding: var(--space-6) var(--space-5);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-glass);
+      cursor: pointer;
+      transition:
+        background var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-normal) var(--ease-spring),
+        transform var(--duration-normal) var(--ease-spring);
+      text-align: center;
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .mode-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--border-top-highlight);
+    }
+    .mode-card:hover {
+      background: var(--bg-glass-hover);
+      border-color: var(--border-glass-strong);
+      transform: translateY(-2px);
+    }
+    .mode-card.selected {
+      background: var(--bg-glass-active);
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-glass), var(--glow-primary);
+    }
+
+    .mode-emoji {
+      font-size: var(--text-size-h2);
+      display: block;
+      margin-bottom: var(--space-2);
+    }
+    .mode-name {
+      font-size: var(--text-size-md);
+      font-weight: var(--text-weight-bold);
+      color: var(--text-primary);
+      letter-spacing: var(--text-tracking-snug);
+    }
+    .mode-desc {
+      font-size: var(--text-size-xs);
+      color: var(--text-muted);
+      margin-top: var(--space-2);
+      line-height: var(--text-leading-normal);
+    }
+
+    /* Start Button */
+    .start-btn {
+      width: 100%;
+      max-width: 480px;
+      padding: var(--space-5) var(--space-8);
+      border: none;
+      border-radius: var(--radius-full);
+      font-family: var(--font-display);
+      font-size: var(--text-size-lg);
+      font-weight: var(--text-weight-bold);
+      letter-spacing: var(--text-tracking-wide);
+      cursor: pointer;
+      transition:
+        opacity var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-normal) var(--ease-spring),
+        transform var(--duration-normal) var(--ease-spring);
+    }
+    .start-btn:disabled {
+      background: var(--bg-glass);
+      color: var(--text-disabled);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .start-btn:not(:disabled) {
+      background: var(--gradient-cta);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-button-accent);
+    }
+    .start-btn:not(:disabled):hover {
+      box-shadow: var(--shadow-button-hover);
+      transform: translateY(-2px) scale(1.02);
+    }
+    .start-btn:not(:disabled):active {
+      transform: scale(0.97);
+    }
+
+    /* ─── GameScreen ─── */
+    #game-screen {
+      gap: var(--space-6);
+      padding-top: var(--space-8);
+      padding-bottom: var(--space-8);
+    }
+
+    /* ScoreBoard */
+    .scoreboard {
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-glass);
+      padding: var(--space-5) var(--space-6);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .scoreboard::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--border-top-highlight);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    }
+
+    .score-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    .score-label {
+      font-size: var(--text-size-xs);
+      font-weight: var(--text-weight-medium);
+      color: var(--text-muted);
+      letter-spacing: var(--text-tracking-widest);
+      text-transform: uppercase;
+    }
+    .score-number {
+      font-size: var(--text-size-h1);
+      font-weight: var(--text-weight-black);
+      line-height: var(--text-leading-tight);
+      letter-spacing: var(--text-tracking-tight);
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .vs-divider {
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-bold);
+      color: var(--text-muted);
+      letter-spacing: var(--text-tracking-widest);
+    }
+    .round-label {
+      font-size: var(--text-size-xs);
+      color: var(--text-muted);
+      letter-spacing: var(--text-tracking-wide);
+    }
+
+    /* Computer Display Zone */
+    .computer-zone {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .computer-zone-label {
+      font-size: var(--text-size-xs);
+      font-weight: var(--text-weight-medium);
+      color: var(--text-muted);
+      letter-spacing: var(--text-tracking-widest);
+      text-transform: uppercase;
+    }
+    .computer-card {
+      width: 120px;
+      height: 120px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-glass);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-size-emoji);
+      transition:
+        transform var(--duration-normal) var(--ease-spring),
+        box-shadow var(--duration-normal) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard);
+      position: relative;
+      overflow: hidden;
+    }
+    .computer-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--border-top-highlight);
+    }
+    .computer-card.reveal {
+      animation: revealPunch var(--duration-normal) var(--ease-spring) forwards;
+    }
+    @keyframes revealPunch {
+      0%   { transform: scale(0.5); opacity: 0; }
+      60%  { transform: scale(1.08); }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* Choice Prompt */
+    .choice-prompt {
+      font-size: var(--text-size-md);
+      font-weight: var(--text-weight-medium);
+      color: var(--text-secondary);
+      letter-spacing: var(--text-tracking-snug);
+    }
+
+    /* Choice Buttons */
+    .choice-group {
+      display: flex;
+      gap: var(--space-4);
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .choice-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: var(--space-6) var(--space-3);
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-glass);
+      cursor: pointer;
+      transition:
+        background var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-normal) var(--ease-spring),
+        transform var(--duration-normal) var(--ease-spring),
+        opacity var(--duration-fast) var(--ease-standard);
+      position: relative;
+      overflow: hidden;
+    }
+    .choice-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--border-top-highlight);
+    }
+    .choice-btn:hover:not(:disabled) {
+      background: var(--bg-glass-hover);
+      border-color: var(--border-glass-strong);
+      box-shadow: var(--shadow-button-hover);
+      transform: translateY(-2px) scale(1.04);
+    }
+    .choice-btn:focus-visible {
+      outline: none;
+      border-color: var(--border-accent);
+    }
+    .choice-btn.selected {
+      background: var(--bg-glass-active);
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-glass), var(--glow-primary);
+      animation: selectedPunch var(--duration-normal) var(--ease-spring);
+    }
+    @keyframes selectedPunch {
+      0%   { transform: scale(0.96); }
+      60%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+    .choice-btn:disabled {
+      opacity: 0.35;
+      transform: scale(0.95);
+      pointer-events: none;
+    }
+    .choice-btn.win-pulse {
+      border-color: var(--state-win-border);
+      box-shadow: var(--shadow-glass), var(--glow-win);
+      animation: winPulse 0.6s var(--ease-bounce) infinite alternate;
+    }
+    @keyframes winPulse {
+      0%   { transform: scale(1); }
+      100% { transform: scale(1.04); }
+    }
+    .choice-btn.lose-dim {
+      opacity: 0.5;
+      border-color: var(--state-lose-border);
+    }
+
+    .choice-emoji {
+      font-size: var(--text-size-emoji);
+      line-height: 1;
+    }
+    .choice-label {
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-semibold);
+      color: var(--text-secondary);
+      letter-spacing: var(--text-tracking-snug);
+    }
+
+    /* Quit Button */
+    .quit-btn {
+      background: none;
+      border: none;
+      font-family: var(--font-body);
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-medium);
+      color: var(--text-muted);
+      letter-spacing: var(--text-tracking-wide);
+      cursor: pointer;
+      padding: var(--space-3) var(--space-6);
+      border-radius: var(--radius-full);
+      transition:
+        color var(--duration-fast) var(--ease-standard),
+        background var(--duration-fast) var(--ease-standard);
+    }
+    .quit-btn:hover {
+      color: var(--text-secondary);
+      background: var(--bg-glass);
+    }
+
+    /* ─── ResultBadge ─── */
+    .result-badge {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.6);
+      opacity: 0;
+      z-index: 20;
+      pointer-events: none;
+      min-width: 220px;
+      padding: var(--space-8) var(--space-10);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-card);
+      text-align: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .result-badge.show {
+      animation: badgeEnter var(--duration-normal) var(--ease-spring) forwards;
+    }
+    .result-badge.hide {
+      animation: badgeExit var(--duration-fast) var(--ease-accelerate) forwards;
+    }
+    @keyframes badgeEnter {
+      0%   { transform: translate(-50%,-50%) scale(0.6); opacity: 0; }
+      100% { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+    }
+    @keyframes badgeExit {
+      0%   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(0.9); opacity: 0; }
+    }
+
+    .result-badge.win  { background: var(--state-win-bg);  box-shadow: var(--shadow-card), var(--glow-win); }
+    .result-badge.lose { background: var(--state-lose-bg); box-shadow: var(--shadow-card), var(--glow-lose); }
+    .result-badge.tie  { background: var(--state-tie-bg);  box-shadow: var(--shadow-card), var(--glow-tie); }
+
+    .result-headline {
+      font-size: var(--text-size-h1);
+      font-weight: var(--text-weight-black);
+      letter-spacing: var(--text-tracking-tight);
+      line-height: var(--text-leading-tight);
+    }
+    .result-badge.win  .result-headline { color: var(--state-win); }
+    .result-badge.lose .result-headline { color: var(--state-lose); }
+    .result-badge.tie  .result-headline { color: var(--state-tie); }
+
+    .result-subtext {
+      margin-top: var(--space-2);
+      font-size: var(--text-size-sm);
+      color: var(--text-secondary);
+      font-weight: var(--text-weight-medium);
+      letter-spacing: var(--text-tracking-snug);
+    }
+
+    /* ─── CountdownOverlay ─── */
+    .countdown-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-8);
+      background: var(--bg-overlay);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--duration-fast) var(--ease-standard);
+    }
+    .countdown-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .countdown-text {
+      font-family: var(--font-display);
+      font-size: clamp(var(--text-size-h1), 20vw, var(--text-size-display));
+      font-weight: var(--text-weight-black);
+      letter-spacing: var(--text-tracking-tight);
+      line-height: var(--text-leading-tight);
+      text-align: center;
+    }
+    .countdown-text.beat-scissors {
+      color: var(--accent-primary-light);
+      text-shadow: var(--glow-primary);
+      animation: beatPunch var(--duration-countdown-beat) var(--ease-spring);
+    }
+    .countdown-text.beat-rock {
+      color: var(--accent-secondary-light);
+      text-shadow: var(--glow-secondary);
+      animation: beatPunch var(--duration-countdown-beat) var(--ease-spring);
+    }
+    .countdown-text.beat-paper {
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 16px rgba(236,72,153,0.6));
+      animation: beatPunchBounce var(--duration-countdown-beat) var(--ease-bounce);
+    }
+    .countdown-text.dissolve {
+      animation: dissolve var(--duration-slow) var(--ease-accelerate) forwards;
+    }
+    @keyframes beatPunch {
+      0%   { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    @keyframes beatPunchBounce {
+      0%   { transform: scale(1.4); }
+      60%  { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+    @keyframes dissolve {
+      0%   { transform: scale(1);   opacity: 1; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    /* beat indicator dots */
+    .beat-dots {
+      display: flex;
+      gap: var(--space-3);
+    }
+    .beat-dot {
+      width: var(--space-3);
+      height: var(--space-3);
+      border-radius: var(--radius-full);
+      background: var(--text-disabled);
+      transition: background var(--duration-fast) var(--ease-standard),
+                  box-shadow var(--duration-fast) var(--ease-standard);
+    }
+    .beat-dot.active-scissors { background: var(--accent-primary-light); box-shadow: var(--glow-primary); }
+    .beat-dot.active-rock     { background: var(--accent-secondary-light); box-shadow: var(--glow-secondary); }
+    .beat-dot.active-paper    { background: var(--accent-secondary-light); box-shadow: var(--glow-secondary); }
+
+    /* ─── Mode Badge (in game) ─── */
+    .mode-badge {
+      font-size: var(--text-size-xs);
+      font-weight: var(--text-weight-semibold);
+      letter-spacing: var(--text-tracking-widest);
+      text-transform: uppercase;
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-accent);
+      color: var(--accent-primary-light);
+      background: var(--accent-primary-dim);
+    }
+
+    /* ─── Game screen bg tint ─── */
+    #game-screen.bg-win  { background: radial-gradient(ellipse at 50% 50%, var(--state-win-bg) 0%, transparent 60%), var(--bg-base); }
+    #game-screen.bg-lose { background: radial-gradient(ellipse at 50% 50%, var(--state-lose-bg) 0%, transparent 60%), var(--bg-base); }
+    #game-screen.bg-tie  { background: radial-gradient(ellipse at 50% 50%, var(--state-tie-bg) 0%, transparent 60%), var(--bg-base); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 480px) {
+      .mode-selector { flex-direction: row; }
+      .mode-card { padding: var(--space-5) var(--space-3); }
+      .mode-emoji { font-size: var(--text-size-h3); }
+      .mode-desc { display: none; }
+
+      .choice-group { gap: var(--space-3); }
+      .choice-btn { padding: var(--space-5) var(--space-2); }
+      .choice-emoji { font-size: var(--text-size-h1); }
+
+      .computer-card { width: 96px; height: 96px; font-size: var(--text-size-h1); }
+
+      .result-badge { min-width: 180px; padding: var(--space-6) var(--space-8); }
+      .result-headline { font-size: var(--text-size-h2); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ StartScreen ═══ -->
+  <section id="start-screen" class="screen active">
+    <h1 class="start-title">가위바위보</h1>
+    <p class="start-subtitle">SCISSORS · ROCK · PAPER</p>
+
+    <div class="mode-selector" role="group" aria-label="게임 모드 선택">
+      <button class="mode-card" id="mode-fair" aria-pressed="false">
+        <span class="mode-emoji">🎲</span>
+        <span class="mode-name">공정 모드</span>
+        <span class="mode-desc">컴퓨터가<br>완전 랜덤으로 선택</span>
+      </button>
+      <button class="mode-card" id="mode-unfair" aria-pressed="false">
+        <span class="mode-emoji">😈</span>
+        <span class="mode-name">불공정 모드</span>
+        <span class="mode-desc">컴퓨터가 70%<br>확률로 이기는 패 선택</span>
+      </button>
+    </div>
+
+    <button class="start-btn" id="start-btn" disabled>모드를 선택하세요</button>
+  </section>
+
+  <!-- ═══ GameScreen ═══ -->
+  <section id="game-screen" class="screen">
+    <!-- ScoreBoard -->
+    <div class="scoreboard">
+      <div class="score-block">
+        <span class="score-label">나</span>
+        <span class="score-number" id="player-score">0</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-1)">
+        <span class="round-label" id="round-label">Round 1</span>
+        <span class="vs-divider">VS</span>
+        <span class="mode-badge" id="mode-badge">—</span>
+      </div>
+      <div class="score-block">
+        <span class="score-label">컴퓨터</span>
+        <span class="score-number" id="computer-score">0</span>
+      </div>
+    </div>
+
+    <!-- Computer Display Zone -->
+    <div class="computer-zone">
+      <span class="computer-zone-label">컴퓨터</span>
+      <div class="computer-card" id="computer-card">❓</div>
+    </div>
+
+    <!-- Choice Prompt -->
+    <p class="choice-prompt" id="choice-prompt">패를 선택하세요!</p>
+
+    <!-- ChoiceButtonGroup -->
+    <div class="choice-group" role="group" aria-label="패 선택">
+      <button class="choice-btn" data-choice="scissors" id="btn-scissors">
+        <span class="choice-emoji">✌️</span>
+        <span class="choice-label">가위</span>
+      </button>
+      <button class="choice-btn" data-choice="rock" id="btn-rock">
+        <span class="choice-emoji">🪨</span>
+        <span class="choice-label">바위</span>
+      </button>
+      <button class="choice-btn" data-choice="paper" id="btn-paper">
+        <span class="choice-emoji">✋</span>
+        <span class="choice-label">보</span>
+      </button>
+    </div>
+
+    <!-- ResultBadge (absolute overlay) -->
+    <div class="result-badge" id="result-badge" aria-live="assertive">
+      <div class="result-headline" id="result-headline"></div>
+      <div class="result-subtext" id="result-subtext"></div>
+    </div>
+
+    <!-- Quit -->
+    <button class="quit-btn" id="quit-btn">게임 종료</button>
+  </section>
+
+  <!-- ═══ CountdownOverlay (fixed, top-level) ═══ -->
+  <div class="countdown-overlay" id="countdown-overlay" aria-label="카운트다운">
+    <div class="countdown-text" id="countdown-text">가위!</div>
+    <div class="beat-dots">
+      <span class="beat-dot" id="dot-0"></span>
+      <span class="beat-dot" id="dot-1"></span>
+      <span class="beat-dot" id="dot-2"></span>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // ─── Game State ──────────────────────────────────────────────────────────
+    const CHOICES = ['scissors', 'rock', 'paper'];
+    const EMOJI   = { scissors: '✌️', rock: '🪨', paper: '✋' };
+    const LABEL   = { scissors: '가위', rock: '바위', paper: '보' };
+
+    // beats[x] = choice that beats x
+    const BEATS = { scissors: 'rock', rock: 'paper', paper: 'scissors' };
+
+    let state = {
+      mode:           null, // 'fair' | 'unfair'
+      round:          1,
+      playerScore:    0,
+      computerScore:  0,
+      phase:          'waiting', // waiting | selected | counting | reveal | result
+      playerChoice:   null,
+      computerChoice: null,
+    };
+
+    // ─── DOM refs ────────────────────────────────────────────────────────────
+    const startScreen       = document.getElementById('start-screen');
+    const gameScreen        = document.getElementById('game-screen');
+    const modeFairBtn       = document.getElementById('mode-fair');
+    const modeUnfairBtn     = document.getElementById('mode-unfair');
+    const startBtn          = document.getElementById('start-btn');
+    const playerScoreEl     = document.getElementById('player-score');
+    const computerScoreEl   = document.getElementById('computer-score');
+    const roundLabelEl      = document.getElementById('round-label');
+    const modeBadgeEl       = document.getElementById('mode-badge');
+    const computerCardEl    = document.getElementById('computer-card');
+    const choicePromptEl    = document.getElementById('choice-prompt');
+    const choiceBtns        = document.querySelectorAll('.choice-btn');
+    const resultBadgeEl     = document.getElementById('result-badge');
+    const resultHeadlineEl  = document.getElementById('result-headline');
+    const resultSubtextEl   = document.getElementById('result-subtext');
+    const quitBtn           = document.getElementById('quit-btn');
+    const countdownOverlay  = document.getElementById('countdown-overlay');
+    const countdownTextEl   = document.getElementById('countdown-text');
+    const dots              = [document.getElementById('dot-0'), document.getElementById('dot-1'), document.getElementById('dot-2')];
+
+    // ─── Mode Selection ──────────────────────────────────────────────────────
+    function selectMode(mode) {
+      state.mode = mode;
+      modeFairBtn.classList.toggle('selected', mode === 'fair');
+      modeFairBtn.setAttribute('aria-pressed', mode === 'fair');
+      modeUnfairBtn.classList.toggle('selected', mode === 'unfair');
+      modeUnfairBtn.setAttribute('aria-pressed', mode === 'unfair');
+      startBtn.disabled = false;
+      startBtn.textContent = mode === 'fair' ? '공정 모드 시작' : '불공정 모드 시작';
+    }
+
+    modeFairBtn.addEventListener('click',   () => selectMode('fair'));
+    modeUnfairBtn.addEventListener('click', () => selectMode('unfair'));
+
+    // ─── Start / Quit ─────────────────────────────────────────────────────────
+    startBtn.addEventListener('click', () => {
+      if (!state.mode) return;
+      state.round         = 1;
+      state.playerScore   = 0;
+      state.computerScore = 0;
+      switchScreen('game');
+      resetRound();
+    });
+
+    quitBtn.addEventListener('click', () => {
+      switchScreen('start');
+      // reset mode UI
+      modeFairBtn.classList.remove('selected');
+      modeUnfairBtn.classList.remove('selected');
+      modeFairBtn.setAttribute('aria-pressed', 'false');
+      modeUnfairBtn.setAttribute('aria-pressed', 'false');
+      startBtn.disabled = true;
+      startBtn.textContent = '모드를 선택하세요';
+      state.mode = null;
+    });
+
+    function switchScreen(to) {
+      startScreen.classList.toggle('active', to === 'start');
+      gameScreen.classList.toggle('active', to === 'game');
+    }
+
+    // ─── Round reset ─────────────────────────────────────────────────────────
+    function resetRound() {
+      state.phase         = 'waiting';
+      state.playerChoice  = null;
+      state.computerChoice= null;
+
+      // Clear tint
+      gameScreen.classList.remove('bg-win', 'bg-lose', 'bg-tie');
+
+      // Update score/round display
+      playerScoreEl.textContent   = state.playerScore;
+      computerScoreEl.textContent = state.computerScore;
+      roundLabelEl.textContent    = `Round ${state.round}`;
+      modeBadgeEl.textContent     = state.mode === 'fair' ? '공정' : '불공정';
+
+      // Computer card → hidden
+      computerCardEl.textContent = '❓';
+      computerCardEl.classList.remove('reveal');
+      computerCardEl.style.borderColor = '';
+      computerCardEl.style.boxShadow = '';
+
+      // Buttons → active
+      choiceBtns.forEach(b => {
+        b.disabled = false;
+        b.classList.remove('selected', 'win-pulse', 'lose-dim');
+      });
+
+      // Prompt
+      choicePromptEl.textContent = '패를 선택하세요!';
+
+      // Hide result badge
+      resultBadgeEl.classList.remove('show', 'hide', 'win', 'lose', 'tie');
+      resultBadgeEl.style.opacity = '0';
+    }
+
+    // ─── Choice click ─────────────────────────────────────────────────────────
+    choiceBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.phase !== 'waiting') return;
+        state.phase        = 'selected';
+        state.playerChoice = btn.dataset.choice;
+
+        // visual: selected + others disabled
+        choiceBtns.forEach(b => {
+          if (b.dataset.choice === state.playerChoice) {
+            b.classList.add('selected');
+          } else {
+            b.disabled = true;
+          }
+        });
+
+        choicePromptEl.textContent = `${LABEL[state.playerChoice]}!`;
+
+        // Determine computer choice NOW (before countdown shows)
+        state.computerChoice = pickComputer(state.playerChoice);
+
+        // Start countdown
+        startCountdown();
+      });
+    });
+
+    // ─── Computer AI ─────────────────────────────────────────────────────────
+    function pickComputer(playerChoice) {
+      if (state.mode === 'fair') {
+        return CHOICES[Math.floor(Math.random() * 3)];
+      }
+      // unfair: 70% win, 30% random from remaining
+      const r = Math.random();
+      if (r < 0.70) {
+        return BEATS[playerChoice]; // beats player
+      }
+      // 30%: pick from the other two (tie or lose)
+      const others = CHOICES.filter(c => c !== BEATS[playerChoice]);
+      return others[Math.floor(Math.random() * others.length)];
+    }
+
+    // ─── Countdown ────────────────────────────────────────────────────────────
+    const BEATS_SEQ = [
+      { text: '가위!', cls: 'beat-scissors', dotCls: 'active-scissors' },
+      { text: '바위!', cls: 'beat-rock',     dotCls: 'active-rock' },
+      { text: '보!',   cls: 'beat-paper',    dotCls: 'active-paper' },
+    ];
+    const BEAT_MS = 800; // --duration-countdown-beat
+
+    function startCountdown() {
+      state.phase = 'counting';
+      countdownOverlay.classList.add('active');
+      dots.forEach(d => d.className = 'beat-dot');
+
+      let beat = 0;
+      showBeat(beat);
+
+      const interval = setInterval(() => {
+        beat++;
+        if (beat < BEATS_SEQ.length) {
+          showBeat(beat);
+        } else {
+          clearInterval(interval);
+          dissolveCountdown();
+        }
+      }, BEAT_MS);
+    }
+
+    function showBeat(index) {
+      const { text, cls, dotCls } = BEATS_SEQ[index];
+      countdownTextEl.className = 'countdown-text ' + cls;
+      countdownTextEl.textContent = text;
+      dots.forEach((d, i) => {
+        d.className = 'beat-dot' + (i === index ? ' ' + dotCls : '');
+      });
+    }
+
+    function dissolveCountdown() {
+      countdownTextEl.className = 'countdown-text dissolve';
+      setTimeout(() => {
+        countdownOverlay.classList.remove('active');
+        countdownTextEl.className = 'countdown-text';
+        revealResult();
+      }, 500); // --duration-slow
+    }
+
+    // ─── Reveal & Result ──────────────────────────────────────────────────────
+    function revealResult() {
+      state.phase = 'reveal';
+
+      // Show computer card with spring animation
+      computerCardEl.textContent = EMOJI[state.computerChoice];
+      void computerCardEl.offsetWidth; // reflow
+      computerCardEl.classList.add('reveal');
+
+      setTimeout(() => {
+        showResult();
+      }, 400);
+    }
+
+    function showResult() {
+      const p = state.playerChoice;
+      const c = state.computerChoice;
+
+      let outcome;
+      if (p === c) {
+        outcome = 'tie';
+      } else if (BEATS[p] === c) {
+        outcome = 'lose'; // c beats p
+      } else {
+        outcome = 'win';  // p beats c
+      }
+
+      state.phase = outcome;
+
+      // Scores
+      if (outcome === 'win')  state.playerScore++;
+      if (outcome === 'lose') state.computerScore++;
+      playerScoreEl.textContent   = state.playerScore;
+      computerScoreEl.textContent = state.computerScore;
+
+      // BG tint
+      gameScreen.classList.add(`bg-${outcome}`);
+
+      // Choice button visuals
+      choiceBtns.forEach(b => {
+        if (b.dataset.choice === p) {
+          if (outcome === 'win')  b.classList.add('win-pulse');
+          if (outcome === 'lose') b.classList.add('lose-dim');
+        }
+      });
+
+      // Computer card glow
+      if (outcome === 'lose') {
+        computerCardEl.style.borderColor = 'var(--state-win-border)';
+        computerCardEl.style.boxShadow   = 'var(--shadow-glass), var(--glow-win)';
+      } else if (outcome === 'win') {
+        computerCardEl.style.borderColor = 'var(--state-lose-border)';
+        computerCardEl.style.boxShadow   = 'var(--shadow-glass), var(--glow-lose)';
+      } else {
+        computerCardEl.style.borderColor = 'var(--state-tie-border)';
+        computerCardEl.style.boxShadow   = 'var(--shadow-glass), var(--glow-tie)';
+      }
+
+      // ResultBadge
+      const HEADLINES = { win: '이겼다! 🎉', lose: '졌다! 😤', tie: '비겼다! 🤝' };
+      const SUBTEXTS  = {
+        win:  `내 ${LABEL[p]}이(가) 컴퓨터 ${LABEL[c]}을(를) 이겼어!`,
+        lose: `컴퓨터 ${LABEL[c]}이(가) 내 ${LABEL[p]}을(를) 이겼어…`,
+        tie:  `둘 다 ${LABEL[p]}! 비겼어.`,
+      };
+
+      resultHeadlineEl.textContent = HEADLINES[outcome];
+      resultSubtextEl.textContent  = SUBTEXTS[outcome];
+      resultBadgeEl.className      = `result-badge ${outcome}`;
+      void resultBadgeEl.offsetWidth;
+      resultBadgeEl.classList.add('show');
+
+      // Auto-advance after 1.8s
+      setTimeout(() => advanceRound(), 1800);
+    }
+
+    // ─── Advance to next round ────────────────────────────────────────────────
+    function advanceRound() {
+      // Hide badge
+      resultBadgeEl.classList.remove('show');
+      resultBadgeEl.classList.add('hide');
+
+      setTimeout(() => {
+        state.round++;
+        resetRound();
+      }, 200); // --duration-fast
+    }
+
+    // ─── Console simulation (100 rounds, unfair mode) ─────────────────────────
+    // Run: simulateUnfair() in browser console
+    window.simulateUnfair = function(n = 100) {
+      let wins = 0, loses = 0, ties = 0;
+      const savedMode = state.mode;
+      state.mode = 'unfair';
+      for (let i = 0; i < n; i++) {
+        const p = CHOICES[Math.floor(Math.random() * 3)];
+        const c = pickComputer(p);
+        if (p === c) {
+          ties++;
+        } else if (BEATS[p] === c) {
+          loses++;
+        } else {
+          wins++;
+        }
+      }
+      state.mode = savedMode;
+      console.log(`[불공정 모드 ${n}회 시뮬레이션]`);
+      console.log(`컴퓨터 승: ${loses} (${(loses/n*100).toFixed(1)}%)`);
+      console.log(`플레이어 승: ${wins} (${(wins/n*100).toFixed(1)}%)`);
+      console.log(`비김: ${ties} (${(ties/n*100).toFixed(1)}%)`);
+      return { computerWin: loses/n, playerWin: wins/n, tie: ties/n };
+    };
+  </script>
+</body>
+</html>
