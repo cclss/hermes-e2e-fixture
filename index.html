@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>hello, world!</title>
+  <style>
+    /* Token Group: color/base */
+    :root {
+      --bg-base: #ffffff;
+      --text-primary: #111827;
+
+      /* Token Group: typography/base */
+      --text-size-hero: 48px;
+      --font-weight-bold: 700;
+      --line-height-tight: 1.2;
+
+      /* Token Group: spacing/base */
+      --page-padding-y: 48px;
+      --page-padding-x: 24px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Component: landing-hero */
+    .landing-hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: var(--page-padding-y) var(--page-padding-x);
+    }
+
+    .landing-hero__heading {
+      font-size: var(--text-size-hero);
+      font-weight: var(--font-weight-bold);
+      line-height: var(--line-height-tight);
+    }
+  </style>
+</head>
+<body>
+  <main class="landing-hero">
+    <h1 class="landing-hero__heading">hello, world!</h1>
+  </main>
+</body>
+</html>
