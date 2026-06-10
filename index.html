@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✊✌️🖐 가위바위보</title>
+
+  <!-- Google Fonts: Nunito -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ============================================================
+       DESIGN TOKENS — 가위바위보 웹 게임
+       Grain-1 결정 · 2026-06-10
+       ============================================================ */
+    :root {
+      /* ── COLOR ─────────────────────────────────────────────── */
+      --color-bg:               #09090f;
+      --color-surface:          #13131f;
+      --color-surface-elevated: #1c1c2e;
+      --color-border:           #2e2e4a;
+      --color-border-focus:     #5a5a8a;
+      --color-text-primary:     #eeeeff;
+      --color-text-secondary:   #9090b0;
+      --color-text-muted:       #55557a;
+      --color-neutral:          #3a3a5c;
+      --color-accent-win:       #00ff87;
+      --color-accent-lose:      #ff2d55;
+      --color-accent-draw:      #ffd60a;
+      --color-accent-primary:   #7c3aed;
+      --color-accent-secondary: #06b6d4;
+      --color-mode-fair:        #00ff87;
+      --color-mode-unfair:      #ff2d55;
+
+      /* ── GRADIENT ───────────────────────────────────────────── */
+      --gradient-hero:         linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+      --gradient-win:          linear-gradient(135deg, #00ff87 0%, #06b6d4 100%);
+      --gradient-lose:         linear-gradient(135deg, #ff2d55 0%, #ff6b6b 100%);
+      --gradient-draw:         linear-gradient(135deg, #ffd60a 0%, #ff9500 100%);
+      --gradient-cta:          linear-gradient(135deg, #7c3aed 0%, #ff2d55 100%);
+      --gradient-choice-hover: linear-gradient(135deg, #1c1c2e 0%, #2e2e4a 100%);
+
+      /* ── TYPOGRAPHY ─────────────────────────────────────────── */
+      --font-family-primary:     'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --text-size-display:       3.5rem;
+      --text-size-headline:      2rem;
+      --text-size-title:         1.5rem;
+      --text-size-body-lg:       1.125rem;
+      --text-size-body:          1rem;
+      --text-size-sm:            0.875rem;
+      --text-size-xs:            0.75rem;
+      --text-weight-black:       900;
+      --text-weight-bold:        800;
+      --text-weight-semibold:    600;
+      --text-weight-normal:      400;
+      --text-line-height-tight:  1.1;
+      --text-line-height-snug:   1.3;
+      --text-line-height-normal: 1.5;
+
+      /* ── SPACING ────────────────────────────────────────────── */
+      --space-2xs: 2px;
+      --space-xs:  4px;
+      --space-sm:  8px;
+      --space-md:  16px;
+      --space-lg:  24px;
+      --space-xl:  40px;
+      --space-2xl: 64px;
+      --space-3xl: 96px;
+
+      /* ── RADIUS ─────────────────────────────────────────────── */
+      --radius-sm:   8px;
+      --radius-md:   16px;
+      --radius-lg:   24px;
+      --radius-xl:   32px;
+      --radius-pill: 9999px;
+
+      /* ── SHADOW ─────────────────────────────────────────────── */
+      --shadow-sm:           0 2px 8px rgba(0, 0, 0, 0.4);
+      --shadow-md:           0 4px 20px rgba(0, 0, 0, 0.6);
+      --shadow-glow-win:     0 0 20px rgba(0, 255, 135, 0.5);
+      --shadow-glow-lose:    0 0 20px rgba(255, 45, 85, 0.5);
+      --shadow-glow-draw:    0 0 20px rgba(255, 214, 10, 0.5);
+      --shadow-glow-primary: 0 0 20px rgba(124, 58, 237, 0.6);
+      --shadow-glow-fair:    0 0 12px rgba(0, 255, 135, 0.4);
+      --shadow-glow-unfair:  0 0 12px rgba(255, 45, 85, 0.4);
+
+      /* ── TRANSITION ─────────────────────────────────────────── */
+      --duration-fast:           150ms;
+      --duration-normal:         300ms;
+      --duration-slow:           600ms;
+      --duration-countdown-step: 600ms;
+      --duration-reveal:         500ms;
+      --duration-result-hold:    2500ms;
+      --easing-standard:         cubic-bezier(0.4, 0, 0.2, 1);
+      --easing-bounce:           cubic-bezier(0.34, 1.56, 0.64, 1);
+      --easing-decelerate:       cubic-bezier(0.0, 0.0, 0.2, 1);
+      --easing-accelerate:       cubic-bezier(0.4, 0.0, 1, 1);
+    }
+
+    /* ============================================================
+       KEYFRAMES
+       ============================================================ */
+    @keyframes kf-countdown-pulse {
+      0%   { transform: scale(1);   opacity: 1; }
+      40%  { transform: scale(1.4); opacity: 1; }
+      70%  { transform: scale(1.2); opacity: 0.8; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    @keyframes kf-reveal-bounce {
+      0%   { transform: translateY(40px); opacity: 0; }
+      60%  { transform: translateY(-6px); opacity: 1; }
+      100% { transform: translateY(0);    opacity: 1; }
+    }
+
+    @keyframes kf-win-glow {
+      0%, 100% { box-shadow: 0 0 8px  rgba(0, 255, 135, 0.4); }
+      50%       { box-shadow: 0 0 32px rgba(0, 255, 135, 0.9); }
+    }
+
+    @keyframes kf-lose-shake {
+      0%, 100%              { transform: translateX(0); }
+      10%, 30%, 50%, 70%    { transform: translateX(-8px); }
+      20%, 40%, 60%, 80%    { transform: translateX(8px); }
+    }
+
+    @keyframes kf-draw-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    @keyframes kf-float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+
+    @keyframes kf-neon-flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+      20%, 24%, 55%                           { opacity: 0.8; }
+    }
+
+    @keyframes kf-screen-slide-up {
+      from { transform: translateY(0);     opacity: 1; }
+      to   { transform: translateY(-20px); opacity: 0; }
+    }
+
+    @keyframes kf-screen-enter {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    @keyframes kf-choice-select {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(0.9); }
+      70%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes kf-ripple {
+      from { transform: scale(0); opacity: 0.6; }
+      to   { transform: scale(2.5); opacity: 0; }
+    }
+
+    @keyframes kf-badge-pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(255, 45, 85, 0.5); }
+      50%      { box-shadow: 0 0 16px rgba(255, 45, 85, 0.9); }
+    }
+
+    @keyframes kf-progress-bar {
+      from { width: 100%; }
+      to   { width: 0%; }
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-family-primary);
+      font-size: var(--text-size-body);
+      font-weight: var(--text-weight-normal);
+      line-height: var(--text-line-height-normal);
+      color: var(--color-text-primary);
+      background-color: var(--color-bg);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ============================================================
+       UTILITY
+       ============================================================ */
+    .hidden {
+      display: none !important;
+    }
+
+    /* ============================================================
+       APP WRAPPER — fills viewport, stacks screens
+       ============================================================ */
+    #app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Background decorative gradient blobs ─────────────────── */
+    #app::before,
+    #app::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    #app::before {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+    }
+    #app::after {
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%);
+      bottom: -80px;
+      left: -80px;
+    }
+
+    /* ── Common screen layout ─────────────────────────────────── */
+    .screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg) var(--space-md);
+      position: relative;
+      z-index: 1;
+      animation: kf-screen-enter var(--duration-normal) var(--easing-decelerate) both;
+    }
+
+    /* ── Glassmorphism card base ──────────────────────────────── */
+    .glass-card {
+      background: rgba(19, 19, 31, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+
+    /* ============================================================
+       SCREEN 1 — START SCREEN
+       ============================================================ */
+    #start-screen {
+      gap: var(--space-xl);
+    }
+
+    /* Hero title area */
+    .start-hero {
+      text-align: center;
+    }
+
+    .start-hero__emoji-row {
+      font-size: 3rem;
+      display: flex;
+      justify-content: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .start-hero__emoji-row span {
+      display: inline-block;
+      animation: kf-float 3s var(--easing-standard) infinite;
+    }
+    .start-hero__emoji-row span:nth-child(2) { animation-delay: 0.5s; }
+    .start-hero__emoji-row span:nth-child(3) { animation-delay: 1s; }
+
+    .start-hero__title {
+      font-size: var(--text-size-display);
+      font-weight: var(--text-weight-black);
+      line-height: var(--text-line-height-tight);
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: kf-neon-flicker 4s ease-in-out infinite;
+    }
+
+    .start-hero__sub {
+      margin-top: var(--space-sm);
+      font-size: var(--text-size-sm);
+      color: var(--color-text-muted);
+      font-weight: var(--text-weight-semibold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Mode selector */
+    .mode-selector {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .mode-selector__label {
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-semibold);
+      color: var(--color-text-secondary);
+      text-align: center;
+      margin-bottom: var(--space-md);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .mode-selector__cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm);
+    }
+
+    .mode-card {
+      padding: var(--space-md) var(--space-sm);
+      border-radius: var(--radius-md);
+      border: 2px solid var(--color-border);
+      background: var(--color-surface);
+      text-align: center;
+      cursor: pointer;
+      transition:
+        border-color var(--duration-fast) var(--easing-standard),
+        box-shadow   var(--duration-fast) var(--easing-standard),
+        background   var(--duration-fast) var(--easing-standard),
+        transform    var(--duration-fast) var(--easing-standard);
+      user-select: none;
+    }
+
+    .mode-card:hover {
+      transform: translateY(-2px);
+      background: var(--color-surface-elevated);
+    }
+
+    /* Fair mode — active state */
+    .mode-card--fair.mode-card--active {
+      border-color: var(--color-mode-fair);
+      box-shadow: var(--shadow-glow-fair);
+      background: rgba(0, 255, 135, 0.06);
+    }
+
+    /* Unfair mode — active state */
+    .mode-card--unfair.mode-card--active {
+      border-color: var(--color-mode-unfair);
+      box-shadow: var(--shadow-glow-unfair);
+      background: rgba(255, 45, 85, 0.06);
+    }
+
+    .mode-card__icon {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: var(--space-xs);
+    }
+
+    .mode-card__name {
+      font-size: var(--text-size-body-lg);
+      font-weight: var(--text-weight-bold);
+      display: block;
+      margin-bottom: var(--space-2xs);
+    }
+
+    .mode-card--fair  .mode-card__name { color: var(--color-text-primary); }
+    .mode-card--unfair .mode-card__name { color: var(--color-text-primary); }
+
+    .mode-card--fair.mode-card--active  .mode-card__name { color: var(--color-mode-fair); }
+    .mode-card--unfair.mode-card--active .mode-card__name { color: var(--color-mode-unfair); }
+
+    .mode-card__desc {
+      font-size: var(--text-size-xs);
+      color: var(--color-text-secondary);
+      line-height: var(--text-line-height-snug);
+      display: block;
+    }
+
+    .mode-card--unfair.mode-card--active .mode-card__desc {
+      color: var(--color-mode-unfair);
+    }
+
+    /* CTA button */
+    .btn-cta {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      width: 100%;
+      max-width: 360px;
+      padding: var(--space-md) var(--space-xl);
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--gradient-cta);
+      color: #fff;
+      font-family: var(--font-family-primary);
+      font-size: var(--text-size-body-lg);
+      font-weight: var(--text-weight-bold);
+      cursor: pointer;
+      box-shadow: var(--shadow-glow-primary);
+      transition:
+        transform    var(--duration-fast) var(--easing-standard),
+        box-shadow   var(--duration-fast) var(--easing-standard),
+        opacity      var(--duration-fast) var(--easing-standard);
+    }
+
+    .btn-cta:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 0 32px rgba(124, 58, 237, 0.8);
+    }
+
+    .btn-cta:active {
+      transform: scale(0.97);
+    }
+
+    /* Ripple effect */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      width: 60px;
+      height: 60px;
+      margin-top: -30px;
+      margin-left: -30px;
+      pointer-events: none;
+      animation: kf-ripple 0.6s var(--easing-accelerate) forwards;
+    }
+
+    /* ============================================================
+       SCREEN 2 — GAME SCREEN
+       ============================================================ */
+    #game-screen {
+      gap: var(--space-lg);
+    }
+
+    /* Mode badge */
+    .mode-badge {
+      position: fixed;
+      top: var(--space-md);
+      right: var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-pill);
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-semibold);
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .mode-badge--fair {
+      background: rgba(0, 255, 135, 0.12);
+      border: 1px solid rgba(0, 255, 135, 0.4);
+      color: var(--color-mode-fair);
+    }
+
+    .mode-badge--unfair {
+      background: rgba(255, 45, 85, 0.12);
+      border: 1px solid rgba(255, 45, 85, 0.4);
+      color: var(--color-mode-unfair);
+      animation: kf-badge-pulse 2s ease-in-out infinite;
+    }
+
+    /* Scoreboard */
+    .scoreboard {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xl);
+      padding: var(--space-md) var(--space-xl);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+    }
+
+    .score-item {
+      text-align: center;
+      min-width: 56px;
+    }
+
+    .score-item__label {
+      font-size: var(--text-size-xs);
+      font-weight: var(--text-weight-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+      display: block;
+      margin-bottom: var(--space-2xs);
+    }
+
+    .score-item__value {
+      font-size: var(--text-size-headline);
+      font-weight: var(--text-weight-black);
+      line-height: var(--text-line-height-tight);
+      display: block;
+    }
+
+    .score-item--win  .score-item__value { color: var(--color-accent-win); }
+    .score-item--draw .score-item__value { color: var(--color-accent-draw); }
+    .score-item--lose .score-item__value { color: var(--color-accent-lose); }
+
+    .score-divider {
+      width: 1px;
+      height: 40px;
+      background: var(--color-border);
+      flex-shrink: 0;
+    }
+
+    /* Game prompt text */
+    .game-prompt {
+      font-size: var(--text-size-title);
+      font-weight: var(--text-weight-bold);
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+
+    /* Choice buttons */
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-md);
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .btn-choice {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      aspect-ratio: 1;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface);
+      cursor: pointer;
+      transition:
+        transform    var(--duration-fast) var(--easing-bounce),
+        box-shadow   var(--duration-fast) var(--easing-standard),
+        border-color var(--duration-fast) var(--easing-standard),
+        background   var(--duration-fast) var(--easing-standard);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .btn-choice:hover {
+      transform: scale(1.08);
+      border-color: var(--color-border-focus);
+      background: var(--gradient-choice-hover);
+      box-shadow:
+        var(--shadow-md),
+        0 0 20px rgba(124, 58, 237, 0.3);
+    }
+
+    .btn-choice:active {
+      animation: kf-choice-select 0.25s var(--easing-bounce);
+    }
+
+    .btn-choice__emoji {
+      font-size: 2.5rem;
+      line-height: 1;
+      display: block;
+    }
+
+    .btn-choice__label {
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-semibold);
+      color: var(--color-text-secondary);
+    }
+
+    /* End game button */
+    .btn-end {
+      background: transparent;
+      border: none;
+      color: var(--color-text-muted);
+      font-family: var(--font-family-primary);
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-semibold);
+      cursor: pointer;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--color-border);
+      transition:
+        color      var(--duration-fast) var(--easing-standard),
+        border-color var(--duration-fast) var(--easing-standard),
+        background var(--duration-fast) var(--easing-standard);
+    }
+
+    .btn-end:hover {
+      color: var(--color-accent-lose);
+      border-color: var(--color-accent-lose);
+      background: rgba(255, 45, 85, 0.08);
+    }
+
+    /* ============================================================
+       SCREEN 3 — COUNTDOWN SCREEN
+       ============================================================ */
+    #countdown-screen {
+      background: var(--color-surface);
+      gap: var(--space-xl);
+    }
+
+    .countdown-display {
+      text-align: center;
+      position: relative;
+    }
+
+    .countdown-display__text {
+      font-size: var(--text-size-display);
+      font-weight: var(--text-weight-black);
+      line-height: var(--text-line-height-tight);
+      color: var(--color-text-primary);
+      display: block;
+      animation: kf-countdown-pulse var(--duration-countdown-step) var(--easing-bounce) both;
+    }
+
+    .countdown-display__text--final {
+      background: var(--gradient-cta);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .countdown-display__hint {
+      margin-top: var(--space-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      color: var(--color-text-muted);
+      font-size: var(--text-size-sm);
+    }
+
+    .countdown-display__choice-lock {
+      font-size: 1.25rem;
+    }
+
+    /* Progress bar */
+    .countdown-progress {
+      width: 240px;
+      height: 4px;
+      background: var(--color-border);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+
+    .countdown-progress__fill {
+      height: 100%;
+      width: 100%;
+      background: var(--gradient-cta);
+      border-radius: var(--radius-pill);
+      animation: kf-progress-bar 1.8s linear both;
+    }
+
+    /* ============================================================
+       SCREEN 4 — RESULT SCREEN
+       ============================================================ */
+    #result-screen {
+      gap: var(--space-lg);
+      position: relative;
+    }
+
+    /* Tinted result overlay */
+    .result-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: 0;
+      opacity: 0.15;
+      z-index: 0;
+      transition: background var(--duration-normal) var(--easing-standard);
+    }
+
+    .result-overlay--win  { background: var(--gradient-win); }
+    .result-overlay--lose { background: var(--gradient-lose); }
+    .result-overlay--draw { background: var(--gradient-draw); }
+
+    .result-screen__inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-lg);
+      width: 100%;
+      max-width: 480px;
+    }
+
+    /* Result banner */
+    .result-banner {
+      font-size: var(--text-size-display);
+      font-weight: var(--text-weight-black);
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    .result-banner--win {
+      color: var(--color-accent-win);
+      animation: kf-win-glow 1.5s ease-in-out infinite;
+      text-shadow: 0 0 20px rgba(0, 255, 135, 0.6);
+    }
+
+    .result-banner--lose {
+      color: var(--color-accent-lose);
+      animation: kf-lose-shake 0.6s var(--easing-standard) both;
+    }
+
+    .result-banner--draw {
+      color: var(--color-accent-draw);
+      animation: kf-draw-spin 0.5s var(--easing-standard) both;
+    }
+
+    /* Hand reveal cards */
+    .result-hands {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+      width: 100%;
+      justify-content: center;
+    }
+
+    .result-hand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      min-width: 100px;
+      animation: kf-reveal-bounce var(--duration-reveal) var(--easing-bounce) both;
+    }
+
+    .result-hand--user     { animation-delay: 0s; }
+    .result-hand--computer { animation-delay: 0.4s; }
+
+    .result-hand__emoji {
+      font-size: 3.5rem;
+      line-height: 1;
+      display: block;
+    }
+
+    .result-hand__who {
+      font-size: var(--text-size-xs);
+      font-weight: var(--text-weight-semibold);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .result-hand__choice {
+      font-size: var(--text-size-sm);
+      font-weight: var(--text-weight-bold);
+      color: var(--color-text-secondary);
+    }
+
+    /* VS divider */
+    .result-vs {
+      font-size: var(--text-size-title);
+      font-weight: var(--text-weight-black);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    /* Unfair mode curse text */
+    .result-curse {
+      font-size: var(--text-size-sm);
+      color: var(--color-mode-unfair);
+      text-align: center;
+      font-weight: var(--text-weight-semibold);
+      opacity: 0;
+      transition: opacity var(--duration-normal) var(--easing-standard);
+    }
+
+    .result-curse--visible {
+      opacity: 1;
+    }
+
+    /* Next round button */
+    .btn-next {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      padding: var(--space-md) var(--space-2xl);
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--gradient-cta);
+      color: #fff;
+      font-family: var(--font-family-primary);
+      font-size: var(--text-size-body-lg);
+      font-weight: var(--text-weight-bold);
+      cursor: pointer;
+      box-shadow: var(--shadow-glow-primary);
+      transition:
+        transform    var(--duration-fast) var(--easing-standard),
+        box-shadow   var(--duration-fast) var(--easing-standard);
+      animation: kf-reveal-bounce var(--duration-reveal) var(--easing-bounce) 0.5s both;
+    }
+
+    .btn-next:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 0 32px rgba(124, 58, 237, 0.8);
+    }
+
+    .btn-next:active {
+      transform: scale(0.97);
+    }
+
+    /* Computer hand unfair tint */
+    .result-hand--computer.unfair-tint {
+      background: rgba(255, 45, 85, 0.07);
+      border: 1px solid rgba(255, 45, 85, 0.2);
+    }
+
+    /* ============================================================
+       RESPONSIVE — 768px+
+       ============================================================ */
+    @media (min-width: 768px) {
+      .start-hero__title {
+        font-size: 4.5rem;
+      }
+
+      .start-hero__emoji-row {
+        font-size: 4rem;
+      }
+
+      .mode-selector {
+        max-width: 480px;
+      }
+
+      .btn-cta {
+        max-width: 480px;
+        font-size: var(--text-size-title);
+        padding: var(--space-lg) var(--space-2xl);
+      }
+
+      .choice-grid {
+        max-width: 500px;
+        gap: var(--space-lg);
+      }
+
+      .btn-choice__emoji {
+        font-size: 3.5rem;
+      }
+
+      .btn-choice__label {
+        font-size: var(--text-size-body);
+      }
+
+      .countdown-display__text {
+        font-size: 5rem;
+      }
+
+      .result-banner {
+        font-size: 5rem;
+      }
+
+      .result-hand {
+        min-width: 140px;
+        padding: var(--space-xl);
+      }
+
+      .result-hand__emoji {
+        font-size: 5rem;
+      }
+
+      .scoreboard {
+        gap: var(--space-2xl);
+      }
+    }
+
+    /* ============================================================
+       RESPONSIVE — 1280px+
+       ============================================================ */
+    @media (min-width: 1280px) {
+      .screen {
+        padding: var(--space-xl) var(--space-2xl);
+      }
+
+      .start-hero__title {
+        font-size: 5.5rem;
+      }
+
+      .start-hero__emoji-row {
+        font-size: 5rem;
+      }
+
+      .mode-selector {
+        max-width: 540px;
+      }
+
+      .btn-cta {
+        max-width: 540px;
+      }
+
+      .choice-grid {
+        max-width: 540px;
+      }
+
+      .btn-choice {
+        border-radius: var(--radius-xl);
+      }
+
+      .result-screen__inner {
+        max-width: 600px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ① START SCREEN ─────────────────────────────────────────── -->
+  <section id="start-screen" class="screen">
+
+    <!-- Hero title -->
+    <div class="start-hero">
+      <div class="start-hero__emoji-row">
+        <span>✊</span><span>✌️</span><span>🖐</span>
+      </div>
+      <h1 class="start-hero__title">가위바위보</h1>
+      <p class="start-hero__sub">컴퓨터와 한판 붙어보자</p>
+    </div>
+
+    <!-- Mode selector -->
+    <div class="mode-selector">
+      <p class="mode-selector__label">모드 선택</p>
+      <div class="mode-selector__cards">
+
+        <!-- Fair mode card -->
+        <button
+          class="mode-card mode-card--fair mode-card--active"
+          id="mode-fair"
+          data-mode="fair"
+          type="button"
+          aria-pressed="true"
+        >
+          <span class="mode-card__icon">⚖️</span>
+          <span class="mode-card__name">공정</span>
+          <span class="mode-card__desc">컴퓨터가 무작위로 패를 냅니다</span>
+        </button>
+
+        <!-- Unfair mode card -->
+        <button
+          class="mode-card mode-card--unfair"
+          id="mode-unfair"
+          data-mode="unfair"
+          type="button"
+          aria-pressed="false"
+        >
+          <span class="mode-card__icon">😈</span>
+          <span class="mode-card__name">불공정</span>
+          <span class="mode-card__desc">컴퓨터가 70% 확률로 이깁니다 😈</span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Start CTA -->
+    <button class="btn-cta" id="btn-start" type="button">
+      🎮 게임 시작
+    </button>
+
+  </section>
+
+
+  <!-- ② GAME SCREEN ──────────────────────────────────────────── -->
+  <section id="game-screen" class="screen hidden">
+
+    <!-- Mode badge (fixed, shared across game/countdown/result) -->
+    <div class="mode-badge mode-badge--fair" id="mode-badge">
+      <span id="mode-badge-icon">⚖️</span>
+      <span id="mode-badge-label">공정</span>
+    </div>
+
+    <!-- Scoreboard -->
+    <div class="scoreboard" id="scoreboard">
+      <div class="score-item score-item--win">
+        <span class="score-item__label">승</span>
+        <span class="score-item__value" id="score-win">0</span>
+      </div>
+      <div class="score-divider"></div>
+      <div class="score-item score-item--draw">
+        <span class="score-item__label">무</span>
+        <span class="score-item__value" id="score-draw">0</span>
+      </div>
+      <div class="score-divider"></div>
+      <div class="score-item score-item--lose">
+        <span class="score-item__label">패</span>
+        <span class="score-item__value" id="score-lose">0</span>
+      </div>
+    </div>
+
+    <!-- Prompt -->
+    <p class="game-prompt">패를 선택하세요!</p>
+
+    <!-- Choice buttons -->
+    <div class="choice-grid">
+      <button class="btn-choice" id="choice-scissors" data-choice="scissors" type="button" aria-label="가위">
+        <span class="btn-choice__emoji">✌️</span>
+        <span class="btn-choice__label">가위</span>
+      </button>
+      <button class="btn-choice" id="choice-rock" data-choice="rock" type="button" aria-label="바위">
+        <span class="btn-choice__emoji">🤜</span>
+        <span class="btn-choice__label">바위</span>
+      </button>
+      <button class="btn-choice" id="choice-paper" data-choice="paper" type="button" aria-label="보">
+        <span class="btn-choice__emoji">🖐</span>
+        <span class="btn-choice__label">보</span>
+      </button>
+    </div>
+
+    <!-- End game -->
+    <button class="btn-end" id="btn-end" type="button">게임 종료</button>
+
+  </section>
+
+
+  <!-- ③ COUNTDOWN SCREEN ─────────────────────────────────────── -->
+  <section id="countdown-screen" class="screen hidden">
+
+    <div class="countdown-display">
+      <span class="countdown-display__text" id="countdown-text">가위!</span>
+      <div class="countdown-display__hint">
+        <span class="countdown-display__choice-lock" id="countdown-user-emoji">✌️</span>
+        <span id="countdown-user-label">가위 선택됨</span>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="countdown-progress">
+      <div class="countdown-progress__fill" id="countdown-progress-fill"></div>
+    </div>
+
+  </section>
+
+
+  <!-- ④ RESULT SCREEN ────────────────────────────────────────── -->
+  <section id="result-screen" class="screen hidden">
+
+    <!-- Background tint overlay -->
+    <div class="result-overlay result-overlay--win" id="result-overlay"></div>
+
+    <div class="result-screen__inner">
+
+      <!-- Result banner -->
+      <div class="result-banner result-banner--win" id="result-banner">WIN</div>
+
+      <!-- Hands reveal -->
+      <div class="result-hands">
+        <div class="result-hand result-hand--user glass-card">
+          <span class="result-hand__emoji" id="result-user-emoji">✌️</span>
+          <span class="result-hand__who">나</span>
+          <span class="result-hand__choice" id="result-user-label">가위</span>
+        </div>
+
+        <div class="result-vs">VS</div>
+
+        <div class="result-hand result-hand--computer glass-card" id="result-computer-card">
+          <span class="result-hand__emoji" id="result-computer-emoji">🤜</span>
+          <span class="result-hand__who">컴퓨터</span>
+          <span class="result-hand__choice" id="result-computer-label">바위</span>
+        </div>
+      </div>
+
+      <!-- Unfair mode curse text -->
+      <p class="result-curse" id="result-curse">😈 불공정 모드의 저주…</p>
+
+      <!-- Next round button -->
+      <button class="btn-next" id="btn-next" type="button">
+        다음 라운드 ▶
+      </button>
+
+    </div>
+  </section>
+
+</div>
+
+<script>
+  /* grain-2: JS 이벤트 핸들러 예약 블록 — grain-3에서 구현 */
+</script>
+</body>
+</html>
