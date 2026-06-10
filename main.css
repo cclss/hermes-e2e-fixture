@@ -1425,8 +1425,19 @@ kbd.key {
 }
 
 /* Applied to .board-wrapper by JS when health is low */
-.board-wrapper.is-danger .health-fill {
-  animation: health-danger 0.6s ease-in-out infinite;
+.board-wrapper.is-danger {
+  box-shadow:
+    var(--sh-board),
+    0 0 0 2px var(--c-red),
+    0 0 24px rgba(255,64,64,0.45),
+    6px 6px 0 var(--c-ink),
+    8px 10px 24px rgba(0,0,0,0.7);
+  animation: danger-border-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes danger-border-pulse {
+  0%, 100% { box-shadow: var(--sh-board), 0 0 0 2px var(--c-red), 0 0 24px rgba(255,64,64,0.45), 6px 6px 0 var(--c-ink); }
+  50%      { box-shadow: var(--sh-board), 0 0 0 3px var(--c-red), 0 0 40px rgba(255,64,64,0.65), 6px 6px 0 var(--c-ink); }
 }
 
 /* Applied to .vs-emblem continuously after game starts */
