@@ -97,6 +97,11 @@
       --easing-bounce:           cubic-bezier(0.34, 1.56, 0.64, 1);
       --easing-decelerate:       cubic-bezier(0.0, 0.0, 0.2, 1);
       --easing-accelerate:       cubic-bezier(0.4, 0.0, 1, 1);
+
+      /* ── COMBO [grain-2] ────────────────────────────────────── */
+      --gradient-combo:         linear-gradient(135deg, #ff6b00 0%, #ff2d55 100%);
+      --color-combo-fire:       #ff6b00;
+      --shadow-glow-combo:      0 0 20px rgba(255, 107, 0, 0.6);
     }
 
     /* ============================================================
@@ -178,6 +183,31 @@
       35%  { transform: scale(1.45); }
       65%  { transform: scale(0.95); }
       100% { transform: scale(1);    }
+    }
+
+    /* grain-2 ── 콘페티 낙하 */
+    @keyframes kf-confetti-fall {
+      0%   {
+        transform: translateY(0) rotate(var(--cf-init-rot, 0deg));
+        opacity: 1;
+      }
+      80%  { opacity: 1; }
+      100% {
+        transform: translateY(110vh) rotate(calc(var(--cf-init-rot, 0deg) + 540deg)) scaleX(0.5);
+        opacity: 0;
+      }
+    }
+
+    /* grain-2 ── 링 하이로 회전 */
+    @keyframes kf-ring-rotate {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* grain-2 ── 콤보 배지 펄스 */
+    @keyframes kf-combo-pulse {
+      0%, 100% { transform: scale(1);     box-shadow: 0 0 16px rgba(255, 107, 0, 0.45); }
+      50%       { transform: scale(1.06); box-shadow: 0 0 32px rgba(255, 107, 0, 0.9);  }
     }
 
     /* ============================================================
@@ -840,6 +870,72 @@
     }
 
     /* ============================================================
+       CONFETTI — WIN 축하 파티클  [grain-2]
+       ============================================================ */
+    .confetti-piece {
+      position: fixed;
+      top: -20px;
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 999;
+      animation: kf-confetti-fall var(--cf-dur, 2s) ease-in forwards;
+    }
+
+    /* ============================================================
+       RING HALO — WIN 회전 링 데코  [grain-2]
+       ============================================================ */
+    .ring-halo-wrap {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .ring-halo {
+      position: absolute;
+      --ring-size: min(78vw, 420px);
+      width: var(--ring-size);
+      height: var(--ring-size);
+      top:  calc(-1 * var(--ring-size) / 2);
+      left: calc(-1 * var(--ring-size) / 2);
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color:   rgba(0, 255, 135, 0.55);
+      border-right-color: rgba(6, 182, 212, 0.35);
+      animation: kf-ring-rotate 3s linear infinite;
+    }
+
+    .ring-halo--inner {
+      --ring-size: min(48vw, 260px);
+      border-width: 1px;
+      border-top-color:  rgba(255, 214, 10, 0.40);
+      border-left-color: rgba(124, 58, 237, 0.45);
+      animation-duration: 2s;
+      animation-direction: reverse;
+    }
+
+    /* ============================================================
+       COMBO BADGE — 연속 승리 스트릭  [grain-2]
+       ============================================================ */
+    .combo-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: var(--space-xs) var(--space-lg);
+      border-radius: var(--radius-pill);
+      background: var(--gradient-combo);
+      color: #fff;
+      font-size: var(--text-size-title);
+      font-weight: var(--text-weight-black);
+      letter-spacing: 0.04em;
+      animation:
+        kf-reveal-bounce var(--duration-reveal) var(--easing-bounce) both,
+        kf-combo-pulse   1.5s ease-in-out 0.5s infinite;
+    }
+
+    /* ============================================================
        RESPONSIVE — 768px+
        ============================================================ */
     @media (min-width: 768px) {
@@ -1065,10 +1161,19 @@
   <!-- ④ RESULT SCREEN ────────────────────────────────────────── -->
   <section id="result-screen" class="screen hidden">
 
+    <!-- Ring halo — WIN 회전 데코 (grain-2) -->
+    <div class="ring-halo-wrap hidden" id="ring-halo-wrap">
+      <div class="ring-halo"></div>
+      <div class="ring-halo ring-halo--inner"></div>
+    </div>
+
     <!-- Background tint overlay -->
     <div class="result-overlay result-overlay--win" id="result-overlay"></div>
 
     <div class="result-screen__inner">
+
+      <!-- Combo streak badge — ≥2 연속 승리 시 노출 (grain-2) -->
+      <div class="combo-badge hidden" id="combo-badge">🔥 2연승!</div>
 
       <!-- Result banner -->
       <div class="result-banner result-banner--win" id="result-banner">WIN</div>
@@ -1144,6 +1249,135 @@
   };
 
   /* ──────────────────────────────────────────────────────────
+     Web Audio Engine (grain-2)
+     design-spec.md §10: AudioContext, try/catch 미지원 브라우저 무음 폴백
+  ────────────────────────────────────────────────────────── */
+  var SFX = (function () {
+    var ctx = null;
+
+    function init() {
+      if (ctx) return;
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) { ctx = null; }
+    }
+
+    function resume() {
+      if (ctx && ctx.state === 'suspended') {
+        try { ctx.resume(); } catch (e) {}
+      }
+    }
+
+    function tone(freq, when, dur, type, vol) {
+      if (!ctx) return;
+      try {
+        var osc  = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, when);
+        gain.gain.setValueAtTime(vol || 0.22, when);
+        gain.gain.exponentialRampToValueAtTime(0.001, when + dur);
+        osc.start(when);
+        osc.stop(when + dur + 0.05);
+      } catch (e) {}
+    }
+
+    return {
+      win: function () {
+        init(); resume();
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        tone(523.25, t,       0.10, 'sine', 0.22);  // C5
+        tone(659.25, t+0.09,  0.10, 'sine', 0.22);  // E5
+        tone(783.99, t+0.18,  0.10, 'sine', 0.22);  // G5
+        tone(1046.5, t+0.27,  0.50, 'sine', 0.28);  // C6
+      },
+      lose: function () {
+        init(); resume();
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        tone(392.0,  t,       0.18, 'sawtooth', 0.16);  // G4
+        tone(329.63, t+0.15,  0.18, 'sawtooth', 0.14);  // E4
+        tone(261.63, t+0.30,  0.45, 'sawtooth', 0.13);  // C4
+      },
+      draw: function () {
+        init(); resume();
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        tone(440, t,       0.28, 'triangle', 0.18);  // A4
+        tone(440, t+0.32,  0.15, 'triangle', 0.10);
+      },
+      click: function () {
+        init(); resume();
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        tone(780, t, 0.055, 'square', 0.11);
+      },
+      countdownTick: function (isFinal) {
+        init(); resume();
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        if (isFinal) {
+          tone(880,  t,       0.07, 'sine', 0.22);
+          tone(1100, t+0.07,  0.12, 'sine', 0.18);
+        } else {
+          tone(600, t, 0.07, 'sine', 0.18);
+        }
+      },
+    };
+  }());
+
+  /* ──────────────────────────────────────────────────────────
+     Confetti Engine (grain-2)
+     design-spec.md §10: kf-confetti-fall, CSS custom property --cf-init-rot
+  ────────────────────────────────────────────────────────── */
+  var CONFETTI_COLORS = [
+    '#00ff87', '#7c3aed', '#06b6d4',
+    '#ffd60a', '#ff2d55', '#ffffff',
+  ];
+
+  function spawnConfetti() {
+    var count = 64;
+    for (var i = 0; i < count; i++) {
+      (function () {
+        var el = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.style.left   = (Math.random() * 100) + 'vw';
+        el.style.width  = (5  + Math.random() * 8)  + 'px';
+        el.style.height = (8  + Math.random() * 14) + 'px';
+        el.style.backgroundColor = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+        el.style.setProperty('--cf-init-rot', (Math.random() * 360) + 'deg');
+        el.style.setProperty('--cf-dur', (1.4 + Math.random() * 1.6) + 's');
+        el.style.animationDelay = (Math.random() * 0.9) + 's';
+        document.body.appendChild(el);
+        el.addEventListener('animationend', function () { el.remove(); });
+      }());
+    }
+  }
+
+  function clearConfetti() {
+    document.querySelectorAll('.confetti-piece').forEach(function (el) { el.remove(); });
+  }
+
+  /* ──────────────────────────────────────────────────────────
+     Combo Badge Helper (grain-2)
+     design-spec.md §10: 콤보 배지 토큰 · 위치
+  ────────────────────────────────────────────────────────── */
+  function updateComboBadge() {
+    if (!E.comboBadge) return;
+    if (state.combo < 2) {
+      E.comboBadge.classList.add('hidden');
+      return;
+    }
+    var icon = state.combo >= 5 ? '⚡' : state.combo >= 4 ? '💥' : '🔥';
+    E.comboBadge.textContent = icon + ' ' + state.combo + '연승!';
+    E.comboBadge.classList.remove('hidden');
+    retriggerAnimation(E.comboBadge);
+  }
+
+  /* ──────────────────────────────────────────────────────────
      2. STATE
   ────────────────────────────────────────────────────────── */
   var state = {
@@ -1153,6 +1387,7 @@
     compChoice: null,
     outcome:    null,      // 'win' | 'lose' | 'draw'
     score:      { win: 0, draw: 0, lose: 0 },
+    combo:      0,         // 연속 승리 횟수 (grain-2)
     busy:       false,     // FSM 이중진입 방어 플래그
   };
 
@@ -1192,6 +1427,8 @@
     resCompCard:    $('result-computer-card'),
     resCurse:       $('result-curse'),
     btnNext:        $('btn-next'),
+    comboBadge:     $('combo-badge'),    // grain-2
+    ringHaloWrap:   $('ring-halo-wrap'), // grain-2
   };
 
   /* ──────────────────────────────────────────────────────────
@@ -1337,6 +1574,7 @@
     btn.addEventListener('click', function(e) {
       if (state.busy || state.fsm !== 'playing') return;
 
+      SFX.click();                       // grain-2: 선택 사운드
       state.busy       = true;
       state.userChoice = this.dataset.choice;
       state.fsm        = 'countdown';
@@ -1370,11 +1608,14 @@
       E.cdText.textContent = word;
 
       // 마지막 "보!"는 gradient 스타일 추가
-      if (step === CD_STEPS.length - 1) {
+      var isFinalStep = (step === CD_STEPS.length - 1);
+      if (isFinalStep) {
         E.cdText.classList.add('countdown-display__text--final');
       } else {
         E.cdText.classList.remove('countdown-display__text--final');
       }
+
+      SFX.countdownTick(isFinalStep);    // grain-2: 카운트다운 틱 사운드
 
       // CSS 애니메이션 kf-countdown-pulse 재실행
       retriggerAnimation(E.cdText);
@@ -1403,6 +1644,29 @@
     // 점수 누적
     state.score[state.outcome] += 1;
     updateScoreUI();
+
+    // ── 콤보 추적 (grain-2) ──────────────────────────────────
+    if (state.outcome === 'win') {
+      state.combo += 1;
+    } else {
+      state.combo = 0;
+    }
+
+    // ── 사운드 피드백 (grain-2) ──────────────────────────────
+    if      (state.outcome === 'win')  SFX.win();
+    else if (state.outcome === 'lose') SFX.lose();
+    else                               SFX.draw();
+
+    // ── 콘페티 + 링 하이로 (grain-2) ───────────────────────
+    if (state.outcome === 'win') {
+      spawnConfetti();
+      E.ringHaloWrap.classList.remove('hidden');
+    } else {
+      E.ringHaloWrap.classList.add('hidden');
+    }
+
+    // ── 콤보 배지 (grain-2) ─────────────────────────────────
+    updateComboBadge();
 
     var userMeta  = META[state.userChoice];
     var compMeta  = META[state.compChoice];
@@ -1449,7 +1713,9 @@
     if (state.busy || state.fsm !== 'result') return;
     state.busy = true;
 
+    SFX.click();                         // grain-2
     addRipple(this, e);
+    clearConfetti();                     // grain-2: 콘페티 정리
 
     state.fsm        = 'playing';
     state.userChoice = null;
@@ -1457,7 +1723,6 @@
     state.outcome    = null;
 
     // 짧은 딜레이 후 전환 (리플 애니메이션 끝날 여유)
-    var self = this;
     setTimeout(function() {
       state.busy = false;
       showScreen('game');
@@ -1471,12 +1736,15 @@
     if (state.busy || state.fsm !== 'playing') return;
     state.busy = true;
 
+    clearConfetti();                     // grain-2
+
     // 전체 상태 초기화
     state.fsm        = 'start';
     state.userChoice = null;
     state.compChoice = null;
     state.outcome    = null;
     state.score      = { win: 0, draw: 0, lose: 0 };
+    state.combo      = 0;               // grain-2
 
     // 모드를 공정으로 리셋
     selectMode('fair');

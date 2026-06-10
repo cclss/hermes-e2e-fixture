@@ -235,6 +235,9 @@
 | `kf-ripple` | scale(0) + opacity(0.6) → scale(2.5) + opacity(0) | 버튼 클릭 리플 이펙트 |
 | `kf-badge-pulse` | box-shadow 저강도 ↔ 고강도 (반복, rgba 255,45,85) | 불공정 모드 배지 주기적 펄스 |
 | `kf-progress-bar` | width 100% → 0% (선형, 1.8s) | 카운트다운 프로그레스 바 진행 |
+| `kf-confetti-fall` | translateY(0) rotate(--cf-init-rot) → translateY(110vh) rotate(--cf-init-rot+540deg) scaleX(0.5) + opacity fade | 승리 콘페티 파티클 낙하 (grain-2) |
+| `kf-ring-rotate` | rotate(0deg) → rotate(360deg) | WIN 결과 화면 링 하이로 회전 (grain-2) |
+| `kf-combo-pulse` | scale(1) + glow-low → scale(1.06) + glow-high → 반복 | 콤보 배지 강조 펄스 (grain-2) |
 
 ---
 
@@ -441,3 +444,80 @@
 ---
 
 *이 문서는 grain-2가 HTML 단일 파일을 작성할 때 최상단 주석 블록으로 임베드하고, 섹션 8의 CSS 커스텀 프로퍼티를 `:root`에 그대로 적용한다.*
+
+---
+
+## 10. Grain-2 폴리싱 결정 기록
+
+> **★ grain-2 신규 결정 — MZ 프리미엄 폴리싱 레이어**
+
+---
+
+### 10-A. 콘페티 파티클 (`kf-confetti-fall`)
+
+| 항목 | 결정 |
+|---|---|
+| **트리거 조건** | outcome = `'win'` 시 즉시 발사 |
+| **파티클 수** | 64개 |
+| **색상 팔레트** | `color-accent-win`, `color-accent-primary`, `color-accent-secondary`, `color-accent-draw`, `color-accent-lose`, `#ffffff` |
+| **크기 범위** | width 5–13px, height 8–22px (랜덤) |
+| **낙하 시간** | 1.4–3.0s (CSS `--cf-dur` custom property, 랜덤) |
+| **초기 회전** | 0–360deg (CSS `--cf-init-rot` custom property, 랜덤) |
+| **총 회전** | 초기 회전 + 540deg |
+| **DOM 삽입 위치** | `document.body` (position: fixed z-index 999) |
+| **정리 시점** | `animationend` 이벤트 시 자동 제거 + 다음 라운드/종료 시 `clearConfetti()` 강제 정리 |
+
+---
+
+### 10-B. 링 하이로 컴포넌트 (`kf-ring-rotate`)
+
+| 항목 | 결정 |
+|---|---|
+| **트리거 조건** | outcome = `'win'` 시 `.hidden` 제거, 그 외 `.hidden` 유지 |
+| **DOM 구조** | `.ring-halo-wrap` (0×0, absolute, top:50% left:50%) → 내부에 outer + inner 링 |
+| **Outer 링** | 크기 `min(78vw, 420px)`, border-top: `rgba(0,255,135,0.55)`, border-right: `rgba(6,182,212,0.35)` |
+| **Inner 링** | 크기 `min(48vw, 260px)`, border-top: `rgba(255,214,10,0.40)`, border-left: `rgba(124,58,237,0.45)` |
+| **회전 속도** | outer 3s 정방향, inner 2s 역방향 |
+| **z-index** | `z-index: 0` — 결과 카드 뒤, 배경 오버레이 위 |
+
+---
+
+### 10-C. 콤보 배지 컴포넌트
+
+#### Token Group: combo
+
+| Token | Value | 역할 |
+|---|---|---|
+| `gradient-combo` | `linear-gradient(135deg, #ff6b00 0%, #ff2d55 100%)` | 콤보 배지 배경 그라디언트 |
+| `color-combo-fire` | `#ff6b00` | 파이어 오렌지 (gradient-combo 시작점 참조용) |
+| `shadow-glow-combo` | `0 0 20px rgba(255, 107, 0, 0.6)` | 콤보 배지 글로우 |
+
+#### 콤보 배지 컴포넌트 결정
+
+| 항목 | 결정 |
+|---|---|
+| **표시 조건** | `state.combo >= 2` |
+| **위치** | `result-screen__inner` 내부, result-banner **위** (flex column 상단) |
+| **아이콘** | combo 2–3: `🔥`, combo 4: `💥`, combo 5+: `⚡` |
+| **텍스트 포맷** | `{icon} {N}연승!` |
+| **크기** | `text-size-title (1.5rem)`, `text-weight-black (900)` |
+| **형태** | `radius-pill`, `gradient-combo` 배경, `shadow-glow-combo` |
+| **등장 애니메이션** | `kf-reveal-bounce 500ms easing-bounce both` |
+| **지속 애니메이션** | `kf-combo-pulse 1.5s ease-in-out 0.5s infinite` |
+| **combo 리셋 조건** | LOSE 또는 DRAW 발생 시 `state.combo = 0`, 게임 종료 시 초기화 |
+
+---
+
+### 10-D. Web Audio 피드백
+
+| 항목 | 결정 |
+|---|---|
+| **API** | `Web Audio API` — `AudioContext` / `webkitAudioContext` |
+| **폴백 정책** | `try/catch` 래핑 — 미지원 브라우저 완전 무음 (에러 없음) |
+| **초기화 시점** | 각 사운드 함수 최초 호출 시 lazy init (사용자 제스처 내 실행 보장) |
+| **WIN 사운드** | 상행 4음 아르페지오 — C5(0ms) E5(90ms) G5(180ms) C6(270ms), sine, vol 0.22–0.28 |
+| **LOSE 사운드** | 하행 3음 — G4(0ms) E4(150ms) C4(300ms), sawtooth, vol 0.13–0.16 |
+| **DRAW 사운드** | A4 2회 (0ms/320ms), triangle, vol 0.10–0.18 |
+| **카운트다운 틱** | 일반 스텝: 600Hz sine 70ms; 마지막 "보!": 880Hz+1100Hz sine 70ms+120ms |
+| **선택 클릭** | 780Hz square 55ms, vol 0.11 |
+| **모듈 패턴** | `SFX` IIFE 객체 — `win/lose/draw/click/countdownTick` 메서드 |
