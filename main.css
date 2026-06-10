@@ -1211,6 +1211,12 @@ kbd.key {
 }
 
 
+/* Ensure result modal stays above confetti canvas (z-index 200) */
+#result-screen .screen-content {
+  position: relative;
+  z-index: 210;
+}
+
 /* ── Result Screen ── */
 .result-banner {
   display: flex;
@@ -1639,6 +1645,11 @@ kbd.key {
   mix-blend-mode: normal;
 }
 
+/* During confetti burst: raise above overlay so confetti is visible on result screen */
+#particle-canvas.is-confetti {
+  z-index: 200;
+}
+
 /* ── Combo heat board glow pulse (CSS layer on top of canvas glow) ── */
 /* The canvas VFX draws the radial gradient; this adds a subtle border glow
    that reacts to combo via JS adding/removing the class. */
@@ -1660,7 +1671,261 @@ kbd.key {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   17. UTILITY
+   17. GRAIN-5 — Level-up flash, combo fire, audio, responsive
+   ───────────────────────────────────────────────────────────── */
+
+/* ── Level-Up Flash overlay ────────────────────────────────── */
+.levelup-flash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+  border-radius: 3px;
+}
+
+.levelup-flash.is-flashing {
+  animation: levelup-bg-anim 1.4s ease-out forwards;
+}
+
+.levelup-text {
+  font-family: var(--ff-display);
+  font-size: var(--fs-2xl);
+  color: var(--c-yellow);
+  text-shadow: var(--sh-ink-lg), 0 0 36px rgba(255, 194, 52, 0.90);
+  letter-spacing: 0.12em;
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0;
+  transform: scale(0.3) rotate(-8deg);
+}
+
+.levelup-flash.is-flashing .levelup-text {
+  animation: levelup-text-pop 1.4s var(--te-spring) forwards;
+}
+
+@keyframes levelup-bg-anim {
+  0%   { opacity: 0; background: rgba(255, 194, 52, 0); }
+  8%   { opacity: 1; background: rgba(255, 194, 52, 0.18); }
+  25%  { background: rgba(255, 194, 52, 0.06); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; background: rgba(255, 194, 52, 0); }
+}
+
+@keyframes levelup-text-pop {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-8deg); }
+  18%  { opacity: 1; transform: scale(1.22) rotate(4deg); }
+  32%  { transform: scale(0.96) rotate(-2deg); }
+  48%  { transform: scale(1.06) rotate(1deg); }
+  62%  { transform: scale(1.0) rotate(0); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* ── Combo Fire Indicator ──────────────────────────────────── */
+.combo-fire {
+  font-size: 1.1em;
+  line-height: 1;
+  text-align: center;
+  display: none;
+  animation: fire-dance 0.35s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 6px rgba(255, 140, 0, 0.8));
+}
+
+.stat-card--combo.is-on-fire {
+  background: linear-gradient(160deg, rgba(255, 140, 0, 0.22) 0%, var(--c-bg-panel) 100%);
+  box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel),
+              0 0 18px rgba(255, 140, 0, 0.35);
+}
+
+.stat-card--combo.is-ablaze {
+  animation: ablaze-pulse 0.4s ease-in-out infinite;
+}
+
+@keyframes fire-dance {
+  0%   { transform: scale(1) translateY(0); }
+  100% { transform: scale(1.12) translateY(-2px); }
+}
+
+@keyframes ablaze-pulse {
+  0%, 100% { box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel), 0 0 18px rgba(255,140,0,0.35); }
+  50%      { box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel), 0 0 30px rgba(255,140,0,0.65), 0 0 50px rgba(255,60,0,0.3); }
+}
+
+/* ── Penalty Picker — Horizontal pill tab-bar ──────────────── */
+.penalty-btn-group {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  width: 100%;
+  /* Override previous grid */
+}
+
+.penalty-btn {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 2px;
+}
+
+/* Surge no longer spans 2 columns */
+.penalty-btn--wide {
+  grid-column: unset;
+  flex: 1;
+  flex-direction: column;
+  padding: 5px 2px;
+  justify-content: center;
+}
+
+/* Pop animation when penalty flavor switches — triggered by JS adding .is-tab-popping */
+.penalty-btn.is-tab-popping {
+  animation: penalty-tab-pop 220ms var(--te-spring) forwards;
+}
+
+@keyframes penalty-tab-pop {
+  0%   { transform: scale(0.88); }
+  55%  { transform: scale(1.10); }
+  100% { transform: scale(1.0); }
+}
+
+/* ── Mute Button (floating corner) ────────────────────────── */
+.mute-btn {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: calc(var(--z-overlay) + 5);
+  width: 44px;
+  height: 44px;
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 50%;
+  box-shadow: var(--sh-ink-sm), var(--sh-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform var(--td-fast) var(--te-bounce),
+    box-shadow var(--td-fast) var(--te-out);
+}
+
+.mute-btn:hover {
+  transform: scale(1.12);
+  box-shadow: var(--sh-ink-md), var(--sh-panel);
+}
+
+.mute-btn:active {
+  transform: scale(0.92) translateY(2px);
+  box-shadow: var(--sh-btn-press);
+}
+
+.mute-btn.is-muted {
+  opacity: 0.55;
+}
+
+/* ── Mobile / Narrow Screen Overlay ──────────────────────── */
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--c-bg);
+  display: none;    /* shown/hidden by JS based on viewport width */
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(155, 79, 232, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 20% 100%, rgba(91, 155, 245, 0.10) 0%, transparent 60%);
+}
+
+.mobile-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8);
+  background: var(--c-bg-panel);
+  border: 4px solid var(--c-ink);
+  border-radius: 24px;
+  box-shadow: var(--sh-ink-lg), var(--sh-panel);
+  max-width: 340px;
+  width: 90%;
+  text-align: center;
+  animation: pop-in var(--td-slow) var(--te-spring) both;
+}
+
+.mobile-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+  animation: pulse-bob 2s ease-in-out infinite;
+}
+
+.mobile-title {
+  font-family: var(--ff-display);
+  font-size: var(--fs-3xl);
+  color: var(--c-yellow);
+  letter-spacing: 0.06em;
+  text-shadow: var(--sh-ink-md);
+}
+
+.mobile-desc,
+.mobile-hint {
+  font-size: var(--fs-base);
+  color: var(--c-text-secondary);
+  line-height: 1.6;
+}
+
+.mobile-hint {
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* ── Responsive layout scale ───────────────────────────────── */
+/* JS dynamically sets .battle-arena transform; this just ensures
+   the origin and overflow are correct. */
+.battle-arena {
+  transform-origin: top center;
+}
+
+/* ── Result screen: winner pop, loser wilt ─────────────────── */
+#result-screen[data-result="win"]  .screen-content {
+  animation: winner-pop-in var(--td-slow) var(--te-spring) both;
+  box-shadow: var(--sh-ink-lg), var(--sh-panel), 0 0 80px rgba(0,0,0,0.8),
+              0 0 60px rgba(255, 194, 52, 0.35);
+}
+
+#result-screen[data-result="lose"] .screen-content {
+  animation: loser-wilt var(--td-slow) var(--te-out) both;
+}
+
+@keyframes winner-pop-in {
+  0%   { transform: scale(0.5) rotate(-6deg); opacity: 0; }
+  50%  { transform: scale(1.12) rotate(3deg); opacity: 1; }
+  75%  { transform: scale(0.97) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes loser-wilt {
+  0%   { transform: scale(0.9) translateY(-20px); opacity: 0; filter: brightness(0.6); }
+  40%  { transform: scale(1.03) translateY(4px); opacity: 1; }
+  70%  { transform: scale(0.99) translateY(-2px); filter: brightness(0.85); }
+  100% { transform: scale(1) translateY(0); opacity: 1; filter: brightness(0.9); }
+}
+
+/* ── Controls hint: DAS/ARR keys ──────────────────────────── */
+/* Ensure Z/X/C hold keys are shown clearly */
+.hint-row kbd.key--wide {
+  min-width: 36px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   18. UTILITY
    ───────────────────────────────────────────────────────────── */
 .visually-hidden {
   position: absolute;

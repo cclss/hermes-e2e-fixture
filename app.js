@@ -409,6 +409,7 @@ function tryRotate(ps, dir) {
       cur.x = nx;
       cur.y = ny;
       ps.lockDelay = 0;
+      if (ps === STATE.player) AUDIO.rotate();  // grain-5: player rotate sound
       return true;
     }
   }
@@ -426,6 +427,7 @@ function moveHorizontal(ps, dir) {
   if (!collides(ps.board, ps.current.shape, ps.current.x + actualDir, ps.current.y)) {
     ps.current.x += actualDir;
     ps.lockDelay = 0;
+    AUDIO.move();   // grain-5: only called for player (startDAS uses STATE.player)
     return true;
   }
   return false;
@@ -509,6 +511,7 @@ function stampPiece(ps) {
 
 function lockPiece(ps, targetPs) {
   if (!ps.current) return;
+  if (ps === STATE.player) AUDIO.lock();  // grain-5: player lock sound
 
   const isTSpin = detectTSpin(ps);
   stampPiece(ps);
@@ -1086,6 +1089,7 @@ function updateStatsUI(side) {
   scoreEl.addEventListener('animationend', () => scoreEl.classList.remove('is-popping'), { once: true });
 
   updateHealthBar(side);
+  updateComboFire(side, ps.combo);  // grain-5: fire indicator
 }
 
 let _comboHideTimers = { player: null, ai: null };
@@ -1318,12 +1322,16 @@ function getEffectiveAiParams() {
   const base  = STATE.difficulty;
   const diff  = AI_DIFFICULTY[base];
   const score = STATE.player.score;
+  const level = STATE.player.level;
 
   // No ramp for max difficulty (already optimal)
   if (base === 3) return diff;
 
-  // Ramp factor: 0 at score=0, 1.0 at score=8000
-  const t = Math.min(score / 8000, 1.0);
+  // Combined ramp: score contributes 0→1 over 8000 pts,
+  // player level adds an imperceptible per-level tightening (caps at +30% at level 10+)
+  const scoreFactor = Math.min(score / 8000, 1.0);
+  const levelFactor = Math.min((level - 1) * 0.03, 0.30);   // +3% per level, max 30%
+  const t = Math.min(scoreFactor + levelFactor, 1.0);
 
   // Interpolate toward the next tier's values (up to 55% of the gap)
   const next = AI_DIFFICULTY[Math.min(base + 1, 3)];
@@ -1581,9 +1589,9 @@ const INPUT = {
   dasTimer:  null,
   arrTimer:  null,
   downTimer: null,
-  DAS: 170,
-  ARR: 50,
-  SDR: 80,
+  DAS: 150,   // 150ms DAS per Tetris guideline (grain-5)
+  ARR: 33,    // 33ms ARR per Tetris guideline (grain-5)
+  SDR: 60,    // soft-drop repeat interval
 };
 
 function startDAS(dir) {
@@ -1677,8 +1685,15 @@ function bindInputs() {
   DOM.penaltyBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       STATE.penaltyType = btn.dataset.penalty;
-      DOM.penaltyBtns.forEach(b => b.classList.remove('penalty-btn--active'));
+      DOM.penaltyBtns.forEach(b => {
+        b.classList.remove('penalty-btn--active');
+        b.classList.remove('is-tab-popping');
+      });
       btn.classList.add('penalty-btn--active');
+      // grain-5: pop animation on switch
+      void btn.offsetWidth;
+      btn.classList.add('is-tab-popping');
+      btn.addEventListener('animationend', () => btn.classList.remove('is-tab-popping'), { once: true });
     });
   });
 
@@ -1833,6 +1848,13 @@ function endGame(winner) {
 
   showScreen('result');
   setBattleStatus(won ? 'PLAYER WINS!' : 'CPU WINS!');
+
+  // grain-5: game-over audio + confetti
+  setTimeout(() => {
+    AUDIO.gameOver(won);
+    if (won) VFX.spawnConfetti(140);
+  }, 250);
+
   bus.emit('gameOver', { winner });
 }
 
@@ -1852,6 +1874,66 @@ function onMenu() {
 
 
 // ──────────────────────────────────────────────────────────────
+// GRAIN-5 UI HELPERS — Level-up flash, combo fire, responsive
+// ──────────────────────────────────────────────────────────────
+
+function flashLevelUp(side, level) {
+  const el = document.getElementById(side + '-levelup-flash');
+  if (!el) return;
+  el.querySelector('.levelup-text').textContent = `LEVEL ${level}`;
+  el.classList.remove('is-flashing');
+  void el.offsetWidth;
+  el.classList.add('is-flashing');
+  el.addEventListener('animationend', () => el.classList.remove('is-flashing'), { once: true });
+}
+
+function updateComboFire(side, combo) {
+  const card = document.getElementById(side + '-combo-card');
+  const fire = document.getElementById(side + '-combo-fire');
+  if (!card || !fire) return;
+  const on = combo >= 2;
+  card.classList.toggle('is-on-fire', on);
+  card.classList.toggle('is-ablaze', combo >= 5);
+  fire.style.display = on ? 'block' : 'none';
+  if (on) {
+    fire.textContent = combo >= 6 ? '🔥🔥🔥' : combo >= 4 ? '🔥🔥' : '🔥';
+    fire.style.fontSize = Math.min(1.3, 0.75 + combo * 0.08) + 'em';
+  }
+}
+
+// Responsive: scale the battle arena to fit the viewport
+function updateLayoutScale() {
+  const arena = document.querySelector('.battle-arena');
+  if (!arena) return;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Game is designed for 1280 × 760 (approx. with padding)
+  const scaleX = vw / 1280;
+  const scaleY = vh / 760;
+  const scale  = Math.min(1, scaleX, scaleY);
+  if (scale < 1) {
+    arena.style.transform       = `scale(${scale})`;
+    arena.style.transformOrigin = 'top center';
+    // Compensate height so the arena doesn't overflow
+    const root = document.getElementById('game-root');
+    if (root) root.style.alignItems = 'flex-start';
+  } else {
+    arena.style.transform       = '';
+    arena.style.transformOrigin = '';
+    const root = document.getElementById('game-root');
+    if (root) root.style.alignItems = '';
+  }
+}
+
+// Show "best on desktop" overlay below 768px
+function checkMobileOverlay() {
+  const el = document.getElementById('mobile-overlay');
+  if (!el) return;
+  el.style.display = window.innerWidth < 768 ? 'flex' : 'none';
+}
+
+
+// ──────────────────────────────────────────────────────────────
 // CANVAS RESIZE
 // ──────────────────────────────────────────────────────────────
 
@@ -1862,7 +1944,140 @@ function resizeCanvases() {
   DOM.particleCanvas.height = window.innerHeight;
   initBgStars();
   if (typeof VFX !== 'undefined') VFX.refreshRects();
+  updateLayoutScale();   // grain-5: responsive
+  checkMobileOverlay();  // grain-5: mobile notice
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// GRAIN-5: AUDIO — Web Audio API chiptune synthesizer
+// All sounds synthesized; no external assets.
+// Sounds are off by default; user toggles with mute button or M key.
+// ══════════════════════════════════════════════════════════════
+
+const AUDIO = (() => {
+  let _ctx  = null;
+  let _muted = true;   // default OFF per spec
+
+  function ctx() {
+    if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ctx.state === 'suspended') _ctx.resume();
+    return _ctx;
+  }
+
+  // Primary tone: oscillator with envelope
+  function tone(freq, type, vol, atk, hold, rel) {
+    if (_muted) return;
+    try {
+      const c   = ctx();
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.connect(g);
+      g.connect(c.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime);
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime(vol, c.currentTime + atk);
+      g.gain.setValueAtTime(vol, c.currentTime + atk + hold);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + atk + hold + rel);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + atk + hold + rel + 0.02);
+    } catch (e) { /* ignore audio errors */ }
+  }
+
+  // Noise burst (for impact sounds)
+  function noiseBurst(dur, vol) {
+    if (_muted) return;
+    try {
+      const c   = ctx();
+      const len = Math.ceil(c.sampleRate * dur);
+      const buf = c.createBuffer(1, len, c.sampleRate);
+      const d   = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1);
+      const src = c.createBufferSource();
+      const g   = c.createGain();
+      src.buffer = buf;
+      src.connect(g);
+      g.connect(c.destination);
+      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+      src.start();
+      src.stop(c.currentTime + dur + 0.01);
+    } catch (e) {}
+  }
+
+  return {
+    // Piece moves left/right
+    move() {
+      tone(140, 'square', 0.055, 0.001, 0.008, 0.035);
+    },
+
+    // Piece rotates (slightly higher, chirpier)
+    rotate() {
+      tone(260, 'square', 0.075, 0.001, 0.014, 0.055);
+    },
+
+    // Piece locks into board (two-tone thud)
+    lock() {
+      tone(95,  'square',   0.13, 0.001, 0.018, 0.12);
+      tone(60,  'sawtooth', 0.07, 0.001, 0.008, 0.18);
+    },
+
+    // Line clear — chord arpeggio scaled to line count
+    clear(n) {
+      const freqs = [330, 440, 554, 660];
+      for (let i = 0; i < Math.min(n, 4); i++) {
+        setTimeout(() => tone(freqs[i], 'square', 0.19, 0.002, 0.07, 0.18), i * 48);
+      }
+      if (n >= 4) {
+        // Tetris bonus chime
+        setTimeout(() => tone(880, 'square', 0.22, 0.003, 0.11, 0.25), n * 48);
+      }
+    },
+
+    // Combo hit — rising pitch per combo level
+    combo(c) {
+      const f = 300 + Math.min(c, 9) * 58;
+      tone(f, 'square', 0.16, 0.002, 0.05, 0.14);
+    },
+
+    // Receive garbage — low sawtooth rumble + noise
+    receive() {
+      tone(48, 'sawtooth', 0.18, 0.002, 0.06, 0.28);
+      noiseBurst(0.12, 0.08);
+    },
+
+    // Level up — ascending fanfare
+    levelUp() {
+      [440, 554, 659, 880].forEach((f, i) =>
+        setTimeout(() => tone(f, 'square', 0.21, 0.003, 0.08, 0.22), i * 65)
+      );
+    },
+
+    // Game over — win or lose jingle
+    gameOver(won) {
+      if (won) {
+        [523, 659, 784, 1047, 1319].forEach((f, i) =>
+          setTimeout(() => tone(f, 'square', 0.22, 0.003, 0.11, 0.28), i * 72)
+        );
+      } else {
+        [220, 196, 175, 156, 110].forEach((f, i) =>
+          setTimeout(() => tone(f, 'sawtooth', 0.18, 0.002, 0.12, 0.42), i * 105)
+        );
+      }
+    },
+
+    // Toggle mute state; returns new muted state
+    toggleMute() {
+      _muted = !_muted;
+      // Resume context on first unmute (browser autoplay policy)
+      if (!_muted && _ctx && _ctx.state === 'suspended') _ctx.resume();
+      return _muted;
+    },
+
+    isMuted() { return _muted; },
+  };
+})();
 
 
 // ──────────────────────────────────────────────────────────────
@@ -1902,6 +2117,41 @@ function init() {
   bus.on('penalty:queued', data => VFX.onPenaltyQueued(data));
   bus.on('pieceLocked',    data => VFX.onPieceLocked(data));
   bus.on('combo',          data => VFX.onCombo(data));
+
+  // ── Grain-5: wire audio + level-up + combo fire events ──
+  bus.on('lineClear',      ({ rows }) => AUDIO.clear(rows.length));
+  bus.on('combo',          ({ combo }) => { if (combo >= 1) AUDIO.combo(combo); });
+  bus.on('garbageReceived',({ side  }) => { if (side === 'player') AUDIO.receive(); });
+  bus.on('levelUp',        ({ side, level }) => {
+    AUDIO.levelUp();
+    flashLevelUp(side, level);
+  });
+
+  // ── Grain-5: mute toggle button ──
+  const muteBtn  = document.getElementById('mute-btn');
+  const muteIcon = document.getElementById('mute-icon');
+  if (muteBtn && muteIcon) {
+    // Sync icon with default state (starts muted)
+    muteIcon.textContent = AUDIO.isMuted() ? '🔇' : '🔊';
+    muteBtn.classList.toggle('is-muted', AUDIO.isMuted());
+
+    muteBtn.addEventListener('click', () => {
+      const muted = AUDIO.toggleMute();
+      muteIcon.textContent = muted ? '🔇' : '🔊';
+      muteBtn.classList.toggle('is-muted', muted);
+    });
+
+    // M key shortcut
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.altKey) {
+        muteBtn.click();
+      }
+    });
+  }
+
+  // ── Grain-5: initial layout scale + mobile check ──
+  updateLayoutScale();
+  checkMobileOverlay();
 
   // Start VFX overlay loop
   VFX.start();
@@ -2235,6 +2485,19 @@ const VFX = (() => {
       return;
     }
 
+    // Confetti (grain-5): spinning rectangles, keep alpha high then fade near death
+    if (p.type === 'confetti') {
+      p.vx *= Math.pow(p.drag, dt * 60);
+      p.vy += (p.gravity || 160) * dt;
+      p.x  += p.vx * dt;
+      p.y  += p.vy * dt;
+      if (p.angle !== undefined) p.angle += (p.spin || 0) * dt;
+      p.life -= p.decay;
+      p.alpha = Math.min(1, p.life * 3.5);  // stay solid, fade only at end
+      if (p.y > canvas.height + 30) p.alpha = 0;
+      return;
+    }
+
     // Standard physics (burst, lockflash)
     p.vx *= Math.pow(p.drag, dt * 60);
     p.vy *= Math.pow(p.drag, dt * 60);
@@ -2323,14 +2586,15 @@ const VFX = (() => {
     ctx.save();
     ctx.globalAlpha = a;
     ctx.translate(p.x, p.y);
+    if (p.angle !== undefined) ctx.rotate(p.angle);  // grain-5: confetti rotation
     ctx.fillStyle = p.color;
-    ctx.fillRect(-s*0.5, -s*0.5, s, s);
+    ctx.fillRect(-s*0.5, -s*0.5, s, s * (p.type === 'confetti' ? 0.55 : 1));
     if (p.outline && s > 4) {
       ctx.strokeStyle = 'rgba(0,0,0,0.55)';
       ctx.lineWidth   = 1.5;
-      ctx.strokeRect(-s*0.5, -s*0.5, s, s);
+      ctx.strokeRect(-s*0.5, -s*0.5, s, s * (p.type === 'confetti' ? 0.55 : 1));
     }
-    if (s > 5) {
+    if (s > 5 && p.type !== 'confetti') {
       ctx.fillStyle = 'rgba(255,255,255,0.28)';
       ctx.fillRect(-s*0.5 + 1, -s*0.5 + 1, s*0.42, 2);
       ctx.fillRect(-s*0.5 + 1, -s*0.5 + 1, 2, s*0.42);
@@ -2405,6 +2669,40 @@ const VFX = (() => {
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // (E) CONFETTI BURST — winner celebration (grain-5)
+  // ─────────────────────────────────────────────────────────
+  const CONFETTI_COLORS = [
+    '#FFC234','#FF7027','#9B4FE8','#5B9BF5',
+    '#5DBD47','#FF4040','#3EC9B4','#FFFFFF',
+  ];
+
+  function spawnConfetti(count) {
+    const w = canvas.width, h = canvas.height;
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        type:    'confetti',
+        x:       Math.random() * w,
+        y:       -20 - Math.random() * 120,
+        vx:      (Math.random() - 0.5) * 220,
+        vy:      60 + Math.random() * 180,
+        size:    7 + Math.random() * 11,
+        color:   CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        alpha:   1.0,
+        life:    1.0,
+        decay:   0.0016 + Math.random() * 0.0014,
+        drag:    0.99,
+        gravity: 160,
+        outline: true,
+        angle:   Math.random() * Math.PI * 2,
+        spin:    (Math.random() - 0.5) * 9,
+      });
+    }
+    // Raise canvas above result overlay for confetti duration (grain-5)
+    canvas.classList.add('is-confetti');
+    setTimeout(() => canvas.classList.remove('is-confetti'), 5500);
   }
 
   // ── Impact helpers ────────────────────────────────────────
@@ -2492,6 +2790,7 @@ const VFX = (() => {
     onCombo({ side, combo }) {
       heat[side] = Math.min(1.0, heat[side] + 0.11 * combo);
     },
+    spawnConfetti,   // grain-5: winner confetti burst
   };
 })();
 

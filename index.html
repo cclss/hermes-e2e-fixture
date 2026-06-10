@@ -61,6 +61,7 @@
             <div class="stat-card stat-card--combo" id="player-combo-card">
               <div class="stat-label">COMBO</div>
               <div class="stat-value combo-counter" id="player-combo-count">0</div>
+              <div class="combo-fire" id="player-combo-fire" aria-hidden="true">🔥</div>
             </div>
           </div>
 
@@ -77,6 +78,11 @@
 
             <!-- Dimming / effect overlay (shake, blind, etc.) -->
             <div class="board-fx-overlay" id="player-fx-overlay" aria-hidden="true"></div>
+
+            <!-- Level-up flash overlay (grain-5) -->
+            <div class="levelup-flash" id="player-levelup-flash" aria-hidden="true">
+              <span class="levelup-text"></span>
+            </div>
 
             <!-- Game state overlay (paused, etc.) -->
             <div class="board-state-overlay" id="player-state-overlay" aria-hidden="true"></div>
@@ -197,11 +203,11 @@
               <span class="penalty-name">MIRROR</span>
             </button>
 
-            <button class="penalty-btn penalty-btn--surge penalty-btn--wide"
+            <button class="penalty-btn penalty-btn--surge"
                     data-penalty="surge"
                     title="폭발적 연속 줄 공격">
               <span class="penalty-icon">⚡</span>
-              <span class="penalty-name">SURGE — 연속 폭발!</span>
+              <span class="penalty-name">SURGE</span>
             </button>
 
           </div>
@@ -234,10 +240,12 @@
         <!-- Controls Hint -->
         <div class="controls-hint" id="controls-hint" aria-label="Controls">
           <div class="hint-row"><kbd class="key">←→</kbd><span>이동</span></div>
-          <div class="hint-row"><kbd class="key">↑</kbd><span>회전</span></div>
+          <div class="hint-row"><kbd class="key">↑</kbd><kbd class="key">X</kbd><span>오른쪽 회전</span></div>
+          <div class="hint-row"><kbd class="key">Z</kbd><span>왼쪽 회전</span></div>
           <div class="hint-row"><kbd class="key">↓</kbd><span>소프트 드롭</span></div>
           <div class="hint-row"><kbd class="key">SPC</kbd><span>하드 드롭</span></div>
           <div class="hint-row"><kbd class="key">C</kbd><span>홀드</span></div>
+          <div class="hint-row"><kbd class="key">M</kbd><span>소리 ON/OFF</span></div>
           <div class="hint-row"><kbd class="key">P</kbd><span>일시정지</span></div>
         </div>
 
@@ -310,6 +318,12 @@
             <!-- Danger overlay (flashes red when board tops out) -->
             <div class="board-flash" id="ai-flash" aria-hidden="true"></div>
             <div class="board-fx-overlay" id="ai-fx-overlay" aria-hidden="true"></div>
+
+            <!-- Level-up flash overlay (grain-5) -->
+            <div class="levelup-flash" id="ai-levelup-flash" aria-hidden="true">
+              <span class="levelup-text"></span>
+            </div>
+
             <div class="board-state-overlay" id="ai-state-overlay" aria-hidden="true"></div>
           </div>
 
@@ -325,6 +339,7 @@
             <div class="stat-card stat-card--combo" id="ai-combo-card">
               <div class="stat-label">COMBO</div>
               <div class="stat-value combo-counter" id="ai-combo-count">0</div>
+              <div class="combo-fire" id="ai-combo-fire" aria-hidden="true">🔥</div>
             </div>
           </div>
 
@@ -437,6 +452,21 @@
     </div><!-- /countdown-screen -->
 
   </div><!-- /game-root -->
+
+  <!-- Mute toggle (floating, grain-5) -->
+  <button class="mute-btn" id="mute-btn" type="button" title="소리 켜기/끄기 (M)">
+    <span id="mute-icon">🔊</span>
+  </button>
+
+  <!-- Mobile / narrow-screen notice (grain-5) -->
+  <div class="mobile-overlay" id="mobile-overlay" role="alertdialog" aria-label="데스크탑 전용 안내">
+    <div class="mobile-message">
+      <div class="mobile-icon">🖥️</div>
+      <h2 class="mobile-title">데스크탑에서 즐기세요!</h2>
+      <p class="mobile-desc">TETRIS BATTLE은 768px 이상<br>넓은 화면에 최적화되어 있습니다.</p>
+      <p class="mobile-hint">더 큰 화면으로 접속해 주세요 🎮</p>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
