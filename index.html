@@ -129,6 +129,7 @@
       --duration-slow:           500ms;
       --duration-slower:         700ms;
       --duration-countdown-beat: 800ms;
+      --duration-pulse:          600ms;
 
       --ease-standard:   cubic-bezier(0.4,0,0.2,1);
       --ease-decelerate: cubic-bezier(0,0,0.2,1);
@@ -141,6 +142,10 @@
       --text-glow-secondary: drop-shadow(0 0 16px rgba(236,72,153,0.6));
       --blur-glass-card:     blur(12px);
       --blur-glass-overlay:  blur(8px);
+
+      /* opacity */
+      --opacity-disabled: 0.35;
+      --opacity-dim:      0.50;
     }
 
     /* ─── Reset & Base ─── */
@@ -490,21 +495,21 @@
       100% { transform: scale(1); }
     }
     .choice-btn:disabled {
-      opacity: 0.35;
+      opacity: var(--opacity-disabled);
       transform: scale(0.95);
       pointer-events: none;
     }
     .choice-btn.win-pulse {
       border-color: var(--state-win-border);
       box-shadow: var(--shadow-glass), var(--glow-win);
-      animation: winPulse 0.6s var(--ease-bounce) infinite alternate;
+      animation: winPulse var(--duration-pulse) var(--ease-bounce) infinite alternate;
     }
     @keyframes winPulse {
       0%   { transform: scale(1); }
       100% { transform: scale(1.04); }
     }
     .choice-btn.lose-dim {
-      opacity: 0.5;
+      opacity: var(--opacity-dim);
       border-color: var(--state-lose-border);
     }
 
