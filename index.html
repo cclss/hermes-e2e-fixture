@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TETRIS BATTLE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Black+Ops+One&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+  <!-- ============================================================
+       GAME ROOT — full-viewport container
+       ============================================================ -->
+  <div id="game-root">
+
+    <!-- Background ambient canvas (stars / floating particles) -->
+    <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+    <!-- Foreground particle / penalty-transfer canvas -->
+    <canvas id="particle-canvas" aria-hidden="true"></canvas>
+
+    <!-- =========================================================
+         MAIN BATTLE ARENA — 3-column layout
+         ========================================================= -->
+    <main class="battle-arena" id="battle-arena">
+
+      <!-- ╔═══════════════════════════╗
+           ║       PLAYER ZONE         ║
+           ╚═══════════════════════════╝ -->
+      <section class="player-zone" id="player-zone" data-side="player">
+
+        <!-- Zone Header -->
+        <header class="zone-header">
+          <div class="player-badge player-badge--you">
+            <span class="player-icon">⚔️</span>
+            <span class="player-name-text">YOU</span>
+          </div>
+          <div class="health-bar-wrapper" aria-label="Player health">
+            <div class="health-bar health-bar--player" id="player-health-bar">
+              <div class="health-fill" id="player-health-fill"></div>
+              <div class="health-shake-line" aria-hidden="true"></div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Board + Side Panels -->
+        <div class="board-area">
+
+          <!-- Left: HOLD + combo stat -->
+          <div class="side-panel side-panel--left" id="player-side-left">
+            <div class="mini-board-card" id="player-hold-card">
+              <div class="mini-board-label">HOLD</div>
+              <canvas id="player-hold-canvas"
+                      class="mini-board-canvas"
+                      width="110" height="88"
+                      aria-label="Player hold piece"></canvas>
+            </div>
+            <div class="stat-card stat-card--combo" id="player-combo-card">
+              <div class="stat-label">COMBO</div>
+              <div class="stat-value combo-counter" id="player-combo-count">0</div>
+            </div>
+          </div>
+
+          <!-- Center: Main Tetris board -->
+          <div class="board-wrapper" id="player-board-wrapper">
+            <canvas id="player-board"
+                    class="tetris-board"
+                    width="300" height="600"
+                    role="img"
+                    aria-label="Player tetris board"></canvas>
+
+            <!-- Line-clear flash overlay -->
+            <div class="board-flash" id="player-flash" aria-hidden="true"></div>
+
+            <!-- Dimming / effect overlay (shake, blind, etc.) -->
+            <div class="board-fx-overlay" id="player-fx-overlay" aria-hidden="true"></div>
+
+            <!-- Game state overlay (paused, etc.) -->
+            <div class="board-state-overlay" id="player-state-overlay" aria-hidden="true"></div>
+          </div>
+
+          <!-- Right: NEXT piece + score block -->
+          <div class="side-panel side-panel--right" id="player-side-right">
+            <div class="mini-board-card" id="player-next-card">
+              <div class="mini-board-label">NEXT</div>
+              <canvas id="player-next-canvas"
+                      class="mini-board-canvas"
+                      width="110" height="88"
+                      aria-label="Player next piece"></canvas>
+            </div>
+            <div class="score-block" id="player-score-block">
+              <div class="score-row">
+                <span class="stat-label">SCORE</span>
+                <span class="stat-value score-num" id="player-score">0</span>
+              </div>
+              <div class="score-row">
+                <span class="stat-label">LEVEL</span>
+                <span class="stat-value level-num" id="player-level">1</span>
+              </div>
+              <div class="score-row">
+                <span class="stat-label">LINES</span>
+                <span class="stat-value" id="player-lines">0</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /board-area -->
+
+        <!-- Combo toast (floats above board on combo) -->
+        <div class="combo-toast" id="player-combo-toast"
+             role="status" aria-live="polite" aria-atomic="true"
+             data-hidden="true">
+          <span class="combo-toast-count" id="player-combo-toast-count">3</span>
+          <span class="combo-toast-label">COMBO!</span>
+        </div>
+
+        <!-- Incoming attack warning (arrows from AI) -->
+        <div class="incoming-warning" id="player-incoming" aria-hidden="true">
+          <span class="incoming-icon">⚠️</span>
+          <span class="incoming-count" id="player-incoming-count">0</span>
+        </div>
+
+      </section><!-- /player-zone -->
+
+
+      <!-- ╔═══════════════════════════╗
+           ║       BATTLE ZONE         ║
+           ╚═══════════════════════════╝ -->
+      <div class="battle-zone" id="battle-zone" role="region" aria-label="Battle controls">
+
+        <!-- VS Emblem -->
+        <div class="vs-emblem" aria-hidden="true">
+          <span class="vs-text">VS</span>
+        </div>
+
+        <!-- Battle Status Banner -->
+        <div class="battle-status-banner" id="battle-status-banner" role="status" aria-live="polite">
+          <span id="battle-status-text">READY?</span>
+        </div>
+
+        <!-- Penalty / Attack Transfer Visualization
+             JS will inject .penalty-block elements here that animate
+             from one side to the other ("gather → whoosh → impact"). -->
+        <div class="penalty-transfer-lane" id="penalty-transfer-lane" aria-hidden="true">
+
+          <!-- Player's queued attack indicators (blocks stacking up) -->
+          <div class="attack-queue-viz" id="player-attack-viz" data-owner="player">
+            <!-- JS fills: <div class="atk-block atk-block--garbage"></div> etc. -->
+          </div>
+
+          <!-- Divider with lightning bolt -->
+          <div class="transfer-divider" aria-hidden="true">
+            <span class="transfer-bolt">⚡</span>
+          </div>
+
+          <!-- AI's queued attack indicators -->
+          <div class="attack-queue-viz attack-queue-viz--ai" id="ai-attack-viz" data-owner="ai">
+            <!-- JS fills -->
+          </div>
+
+        </div><!-- /penalty-transfer-lane -->
+
+        <!-- ── Attack Mode Picker ── -->
+        <div class="control-card" id="penalty-picker"
+             role="group" aria-label="Attack mode">
+          <div class="control-card-label">ATTACK MODE</div>
+          <div class="penalty-btn-group">
+
+            <button class="penalty-btn penalty-btn--active"
+                    data-penalty="garbage"
+                    title="상대 보드 하단에 쓰레기 줄 추가">
+              <span class="penalty-icon">💀</span>
+              <span class="penalty-name">GARBAGE</span>
+            </button>
+
+            <button class="penalty-btn"
+                    data-penalty="mirror"
+                    title="상대 방향키를 일시적으로 반전">
+              <span class="penalty-icon">🪞</span>
+              <span class="penalty-name">MIRROR</span>
+            </button>
+
+            <button class="penalty-btn"
+                    data-penalty="gravity"
+                    title="상대 블록 낙하 속도 일시 증가">
+              <span class="penalty-icon">⬇️</span>
+              <span class="penalty-name">GRAVITY</span>
+            </button>
+
+            <button class="penalty-btn"
+                    data-penalty="blind"
+                    title="상대 보드 하단을 일시적으로 가림">
+              <span class="penalty-icon">🙈</span>
+              <span class="penalty-name">BLIND</span>
+            </button>
+
+          </div>
+        </div><!-- /penalty-picker -->
+
+        <!-- ── AI Difficulty Selector ── -->
+        <div class="control-card" id="difficulty-selector"
+             role="group" aria-label="AI difficulty">
+          <div class="control-card-label">AI LEVEL</div>
+          <div class="diff-btn-group">
+
+            <button class="diff-btn" data-difficulty="1" title="쉬움">
+              <span class="diff-face">😊</span>
+              <span class="diff-name">EASY</span>
+            </button>
+
+            <button class="diff-btn diff-btn--active" data-difficulty="2" title="보통">
+              <span class="diff-face">😤</span>
+              <span class="diff-name">NORMAL</span>
+            </button>
+
+            <button class="diff-btn" data-difficulty="3" title="어려움">
+              <span class="diff-face">👹</span>
+              <span class="diff-name">HARD</span>
+            </button>
+
+          </div>
+        </div><!-- /difficulty-selector -->
+
+        <!-- Controls Hint -->
+        <div class="controls-hint" id="controls-hint" aria-label="Controls">
+          <div class="hint-row"><kbd class="key">←→</kbd><span>이동</span></div>
+          <div class="hint-row"><kbd class="key">↑</kbd><span>회전</span></div>
+          <div class="hint-row"><kbd class="key">↓</kbd><span>소프트 드롭</span></div>
+          <div class="hint-row"><kbd class="key">SPC</kbd><span>하드 드롭</span></div>
+          <div class="hint-row"><kbd class="key">C</kbd><span>홀드</span></div>
+          <div class="hint-row"><kbd class="key">P</kbd><span>일시정지</span></div>
+        </div>
+
+      </div><!-- /battle-zone -->
+
+
+      <!-- ╔═══════════════════════════╗
+           ║         AI ZONE           ║
+           ╚═══════════════════════════╝ -->
+      <section class="player-zone player-zone--ai" id="ai-zone" data-side="ai">
+
+        <!-- Zone Header -->
+        <header class="zone-header">
+          <div class="player-badge player-badge--ai">
+            <span class="player-icon">🤖</span>
+            <span class="player-name-text">CPU</span>
+          </div>
+          <div class="health-bar-wrapper" aria-label="AI health">
+            <div class="health-bar health-bar--ai" id="ai-health-bar">
+              <div class="health-fill health-fill--ai" id="ai-health-fill"></div>
+              <div class="health-shake-line" aria-hidden="true"></div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Board + Side Panels (mirrored) -->
+        <div class="board-area board-area--ai">
+
+          <!-- Left (mirrored): NEXT piece + score -->
+          <div class="side-panel side-panel--left" id="ai-side-left">
+            <div class="mini-board-card" id="ai-next-card">
+              <div class="mini-board-label">NEXT</div>
+              <canvas id="ai-next-canvas"
+                      class="mini-board-canvas"
+                      width="110" height="88"
+                      aria-label="AI next piece"></canvas>
+            </div>
+            <div class="score-block" id="ai-score-block">
+              <div class="score-row">
+                <span class="stat-label">SCORE</span>
+                <span class="stat-value score-num" id="ai-score">0</span>
+              </div>
+              <div class="score-row">
+                <span class="stat-label">LEVEL</span>
+                <span class="stat-value level-num" id="ai-level">1</span>
+              </div>
+              <div class="score-row">
+                <span class="stat-label">LINES</span>
+                <span class="stat-value" id="ai-lines">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center: AI Main Tetris Board -->
+          <div class="board-wrapper board-wrapper--ai" id="ai-board-wrapper">
+            <canvas id="ai-board"
+                    class="tetris-board"
+                    width="300" height="600"
+                    role="img"
+                    aria-label="AI tetris board"></canvas>
+
+            <!-- T-bag speech bubble (JS controlled) -->
+            <div class="tbag-bubble" id="tbag-bubble"
+                 role="status" aria-live="polite"
+                 data-hidden="true">
+              <div class="bubble-tail" aria-hidden="true"></div>
+              <span class="bubble-text" id="tbag-text">GG EZ 😈</span>
+            </div>
+
+            <!-- Danger overlay (flashes red when board tops out) -->
+            <div class="board-flash" id="ai-flash" aria-hidden="true"></div>
+            <div class="board-fx-overlay" id="ai-fx-overlay" aria-hidden="true"></div>
+            <div class="board-state-overlay" id="ai-state-overlay" aria-hidden="true"></div>
+          </div>
+
+          <!-- Right (mirrored): HOLD + combo stat -->
+          <div class="side-panel side-panel--right" id="ai-side-right">
+            <div class="mini-board-card" id="ai-hold-card">
+              <div class="mini-board-label">HOLD</div>
+              <canvas id="ai-hold-canvas"
+                      class="mini-board-canvas"
+                      width="110" height="88"
+                      aria-label="AI hold piece"></canvas>
+            </div>
+            <div class="stat-card stat-card--combo" id="ai-combo-card">
+              <div class="stat-label">COMBO</div>
+              <div class="stat-value combo-counter" id="ai-combo-count">0</div>
+            </div>
+          </div>
+
+        </div><!-- /board-area -->
+
+        <!-- AI Combo Toast -->
+        <div class="combo-toast combo-toast--ai" id="ai-combo-toast"
+             role="status" aria-live="polite" aria-atomic="true"
+             data-hidden="true">
+          <span class="combo-toast-count" id="ai-combo-toast-count">3</span>
+          <span class="combo-toast-label">COMBO!</span>
+        </div>
+
+        <!-- Incoming warning -->
+        <div class="incoming-warning" id="ai-incoming" aria-hidden="true">
+          <span class="incoming-icon">⚠️</span>
+          <span class="incoming-count" id="ai-incoming-count">0</span>
+        </div>
+
+      </section><!-- /ai-zone -->
+
+    </main><!-- /battle-arena -->
+
+
+    <!-- ============================================================
+         SCREEN OVERLAYS
+         ============================================================ -->
+
+    <!-- Start Screen -->
+    <div class="screen-overlay" id="start-screen"
+         role="dialog" aria-modal="true" aria-label="Game start">
+      <div class="screen-content">
+
+        <div class="title-lockup">
+          <h1 class="game-title">
+            <span class="title-line title-top">TETRIS</span>
+            <span class="title-line title-bottom">BATTLE!</span>
+          </h1>
+          <p class="game-subtitle">CPU와 1대1 팝 테트리스 대전</p>
+        </div>
+
+        <div class="start-controls">
+          <div class="start-difficulty-row">
+            <span class="start-label">DIFFICULTY</span>
+            <div class="diff-btn-group diff-btn-group--start">
+              <button class="diff-btn" data-difficulty="1">😊 EASY</button>
+              <button class="diff-btn diff-btn--active" data-difficulty="2">😤 NORMAL</button>
+              <button class="diff-btn" data-difficulty="3">👹 HARD</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="cta-btn" id="start-btn" type="button" autofocus>
+          <span class="btn-inner">▶ PLAY!</span>
+        </button>
+
+        <p class="start-hint">Press <kbd class="key">ENTER</kbd> to start</p>
+
+      </div>
+    </div><!-- /start-screen -->
+
+    <!-- Result Screen (win / lose) -->
+    <div class="screen-overlay screen-overlay--result" id="result-screen"
+         role="dialog" aria-modal="true" aria-label="Game result"
+         data-hidden="true">
+      <div class="screen-content">
+
+        <div class="result-banner" id="result-banner">
+          <span class="result-text" id="result-text">YOU WIN!</span>
+          <span class="result-sub" id="result-sub">완벽한 승리!</span>
+        </div>
+
+        <div class="result-stats" id="result-stats">
+          <!-- JS fills: score, lines, max combo, time -->
+        </div>
+
+        <div class="result-actions">
+          <button class="cta-btn cta-btn--rematch" id="rematch-btn" type="button">
+            <span class="btn-inner">🔁 REMATCH!</span>
+          </button>
+          <button class="cta-btn cta-btn--menu" id="menu-btn" type="button">
+            <span class="btn-inner">🏠 MENU</span>
+          </button>
+        </div>
+
+      </div>
+    </div><!-- /result-screen -->
+
+    <!-- Pause Screen -->
+    <div class="screen-overlay screen-overlay--pause" id="pause-screen"
+         role="dialog" aria-modal="true" aria-label="Game paused"
+         data-hidden="true">
+      <div class="screen-content screen-content--compact">
+        <div class="pause-icon" aria-hidden="true">⏸</div>
+        <div class="pause-label">PAUSED</div>
+        <button class="cta-btn cta-btn--sm" id="resume-btn" type="button" autofocus>
+          <span class="btn-inner">▶ RESUME</span>
+        </button>
+        <button class="cta-btn cta-btn--sm cta-btn--danger" id="quit-btn" type="button">
+          <span class="btn-inner">🚪 QUIT</span>
+        </button>
+      </div>
+    </div><!-- /pause-screen -->
+
+    <!-- Countdown overlay (3-2-1-GO!) -->
+    <div class="screen-overlay screen-overlay--countdown" id="countdown-screen"
+         role="status" aria-live="assertive"
+         data-hidden="true">
+      <div class="countdown-number" id="countdown-number">3</div>
+    </div><!-- /countdown-screen -->
+
+  </div><!-- /game-root -->
+
+  <script src="app.js"></script>
+</body>
+</html>

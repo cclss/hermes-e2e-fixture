@@ -1,0 +1,1468 @@
+/* =============================================================
+   TETRIS BATTLE — main.css
+   Brawl Stars pop/cartoon visual language
+   Design tokens → layout → components → animations
+   ============================================================= */
+
+/* ─────────────────────────────────────────────────────────────
+   0. GOOGLE FONTS (fallback declarations, actual @import in HTML)
+   ───────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Black+Ops+One&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@700;900&display=swap');
+
+
+/* ─────────────────────────────────────────────────────────────
+   1. DESIGN TOKENS — CSS Custom Properties
+   ───────────────────────────────────────────────────────────── */
+:root {
+
+  /* ── Color Palette ── */
+  --c-bg:           #1A1633;   /* deep purple-navy background */
+  --c-bg-panel:     #242040;   /* panel / card background */
+  --c-bg-board:     #0E0E1C;   /* game board canvas background */
+  --c-bg-overlay:   rgba(10, 8, 24, 0.88);
+  --c-ink:          #0A0818;   /* thick ink outline color */
+  --c-border-panel: #3D3668;   /* subtle panel border */
+
+  --c-yellow:   #FFC234;  /* warm golden – player identity */
+  --c-orange:   #FF7027;  /* punchy orange */
+  --c-red:      #FF4040;  /* AI identity / danger */
+  --c-blue:     #5B9BF5;  /* vivid sky blue */
+  --c-purple:   #9B4FE8;  /* rich purple */
+  --c-green:    #5DBD47;  /* lush green */
+  --c-teal:     #3EC9B4;  /* warm teal */
+
+  --c-player:   var(--c-yellow);  /* player side accent */
+  --c-ai:       var(--c-red);     /* AI side accent */
+
+  --c-text-primary:   #FFFBF0;   /* warm white */
+  --c-text-secondary: #B8B0D8;   /* muted lavender */
+  --c-text-muted:     #6B6490;   /* dark muted */
+  --c-grid-line:      rgba(255, 255, 255, 0.05);
+  --c-highlight:      rgba(255, 255, 255, 0.10);
+
+  /* Tetromino piece colors */
+  --c-piece-I: #5B9BF5;
+  --c-piece-O: #FFC234;
+  --c-piece-T: #9B4FE8;
+  --c-piece-S: #5DBD47;
+  --c-piece-Z: #FF4040;
+  --c-piece-J: #FF7027;
+  --c-piece-L: #3EC9B4;
+  --c-piece-ghost: rgba(255, 255, 255, 0.12);
+
+  /* ── Game Board Dimensions ── */
+  --cell:         30px;
+  --board-w:      300px;   /* 10 × 30px */
+  --board-h:      600px;   /* 20 × 30px */
+  --mini-cell:    22px;
+  --mini-w:       110px;
+  --mini-h:       88px;
+  --side-w:       96px;
+  --panel-gap:    8px;
+
+  /* ── Typography ── */
+  --ff-display: 'Bangers', 'Noto Sans KR', cursive;
+  --ff-score:   'Black Ops One', monospace;
+  --ff-body:    'Nunito', 'Noto Sans KR', sans-serif;
+
+  --fs-xs:    0.625rem;   /* 10px */
+  --fs-sm:    0.75rem;    /* 12px */
+  --fs-base:  0.875rem;   /* 14px */
+  --fs-md:    1rem;       /* 16px */
+  --fs-lg:    1.25rem;    /* 20px */
+  --fs-xl:    1.5rem;     /* 24px */
+  --fs-2xl:   2rem;       /* 32px */
+  --fs-3xl:   2.75rem;    /* 44px */
+  --fs-4xl:   4rem;       /* 64px */
+  --fs-hero:  7rem;       /* 112px */
+
+  /* ── Shadow Depth (cartoon style) ── */
+  --sh-ink-sm:  2px 2px 0 var(--c-ink);
+  --sh-ink-md:  3px 3px 0 var(--c-ink), 5px 5px 0 rgba(0,0,0,0.3);
+  --sh-ink-lg:  4px 4px 0 var(--c-ink), 7px 7px 0 rgba(0,0,0,0.4);
+  --sh-panel:   0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+  --sh-board:   inset 0 0 40px rgba(0,0,0,0.6);
+  --sh-btn:     3px 3px 0 var(--c-ink);
+  --sh-btn-press: 1px 1px 0 var(--c-ink);
+  --sh-glow-player: 0 0 24px rgba(255, 194, 52, 0.40), 0 0 48px rgba(255, 194, 52, 0.18);
+  --sh-glow-ai:     0 0 24px rgba(255, 64,  64, 0.40), 0 0 48px rgba(255, 64,  64, 0.18);
+  --sh-glow-blue:   0 0 20px rgba(91,  155, 245, 0.35), 0 0 40px rgba(91, 155, 245, 0.15);
+  --sh-inner-hi:  inset 0 1px 0 rgba(255,255,255,0.10);
+
+  /* ── Transition Timing ── */
+  --td-snap:    60ms;
+  --td-fast:    120ms;
+  --td-normal:  200ms;
+  --td-slow:    350ms;
+  --td-launch:  500ms;
+  --td-gather:  800ms;
+
+  --te-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --te-spring:  cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --te-out:     cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --te-inout:   cubic-bezier(0.4, 0, 0.2, 1);
+  --te-snap:    cubic-bezier(0.0, 0.0, 0.2, 1);
+
+  /* ── Spacing ── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* ── Border ── */
+  --bd-ink:    3px solid var(--c-ink);
+  --bd-thick:  4px solid var(--c-ink);
+  --bd-panel:  2px solid var(--c-border-panel);
+
+  /* ── Z-index layers ── */
+  --z-bg:       0;
+  --z-arena:    1;
+  --z-particle: 10;
+  --z-toast:    20;
+  --z-overlay:  100;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   2. RESET & BASE
+   ───────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text-primary);
+  font-family: var(--ff-body);
+  font-weight: 700;
+  line-height: 1.2;
+  -webkit-font-smoothing: antialiased;
+  /* Subtle radial depth gradient */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(155, 79, 232, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 20% 100%, rgba(91, 155, 245, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255, 64, 64, 0.08) 0%, transparent 60%);
+}
+
+button {
+  font-family: var(--ff-body);
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  background: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+canvas {
+  display: block;
+}
+
+kbd.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 5px;
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 5px;
+  font-family: var(--ff-body);
+  font-size: var(--fs-xs);
+  font-weight: 900;
+  color: var(--c-text-secondary);
+  box-shadow: var(--sh-ink-sm);
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   3. FULL-VIEWPORT CANVASES
+   ───────────────────────────────────────────────────────────── */
+#bg-canvas,
+#particle-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#bg-canvas      { z-index: var(--z-bg); }
+#particle-canvas { z-index: var(--z-particle); }
+
+
+/* ─────────────────────────────────────────────────────────────
+   4. GAME ROOT
+   ───────────────────────────────────────────────────────────── */
+#game-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-arena);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   5. BATTLE ARENA — 3-column layout
+   ───────────────────────────────────────────────────────────── */
+.battle-arena {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  width: 100%;
+  max-width: 1260px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   6. PLAYER ZONE (shared by player & AI)
+   ───────────────────────────────────────────────────────────── */
+.player-zone {
+  flex: 0 0 520px;
+  width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  position: relative;
+}
+
+
+/* ── Zone Header ── */
+.zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 10px;
+  box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel);
+  height: 48px;
+}
+
+.player-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 4px 10px;
+  border: var(--bd-ink);
+  border-radius: 8px;
+  box-shadow: var(--sh-btn);
+  white-space: nowrap;
+}
+
+.player-badge--you {
+  background: var(--c-yellow);
+  color: var(--c-ink);
+  box-shadow: var(--sh-ink-sm), var(--sh-glow-player);
+}
+
+.player-badge--ai {
+  background: var(--c-red);
+  color: var(--c-text-primary);
+  box-shadow: var(--sh-ink-sm), var(--sh-glow-ai);
+}
+
+.player-icon { font-size: var(--fs-base); line-height: 1; }
+
+.player-name-text {
+  font-family: var(--ff-display);
+  font-size: var(--fs-xl);
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.health-bar-wrapper {
+  flex: 1;
+  height: 18px;
+  position: relative;
+}
+
+.health-bar {
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  border: var(--bd-ink);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.health-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--c-green) 0%, #8FDD62 100%);
+  border-radius: 4px;
+  transition: width var(--td-slow) var(--te-out);
+  position: relative;
+}
+
+.health-fill::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 4px; right: 4px;
+  height: 4px;
+  background: rgba(255,255,255,0.35);
+  border-radius: 3px;
+}
+
+.health-fill--ai {
+  background: linear-gradient(90deg, var(--c-red) 0%, #FF7070 100%);
+}
+
+.health-shake-line {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+
+/* ── Board Area (flex row: left panel | board | right panel) ── */
+.board-area {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--panel-gap);
+  position: relative;
+}
+
+
+/* ── Side Panels ── */
+.side-panel {
+  flex: 0 0 var(--side-w);
+  width: var(--side-w);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* Panel card base */
+.mini-board-card,
+.stat-card,
+.score-block {
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 10px;
+  box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel);
+  padding: var(--sp-2) var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.mini-board-label,
+.stat-label,
+.control-card-label {
+  font-family: var(--ff-display);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.1em;
+  color: var(--c-text-secondary);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.mini-board-canvas {
+  width: var(--mini-w);
+  height: var(--mini-h);
+  background: var(--c-bg-board);
+  border: var(--bd-ink);
+  border-radius: 4px;
+  box-shadow: var(--sh-board);
+}
+
+.stat-value {
+  font-family: var(--ff-score);
+  font-size: var(--fs-xl);
+  color: var(--c-text-primary);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.combo-counter {
+  font-size: var(--fs-2xl);
+  color: var(--c-yellow);
+  text-shadow: var(--sh-ink-sm);
+}
+
+.score-block {
+  padding: var(--sp-2);
+  gap: var(--sp-1);
+}
+
+.score-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.score-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.score-num {
+  font-size: var(--fs-lg);
+  color: var(--c-yellow);
+}
+
+.level-num {
+  font-size: var(--fs-lg);
+  color: var(--c-teal);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   7. BOARD WRAPPER + CANVAS
+   ───────────────────────────────────────────────────────────── */
+.board-wrapper {
+  flex: 0 0 var(--board-w);
+  width: var(--board-w);
+  height: var(--board-h);
+  position: relative;
+  border: var(--bd-thick);
+  border-radius: 6px;
+  background: var(--c-bg-board);
+  box-shadow:
+    var(--sh-board),
+    var(--sh-glow-player),
+    6px 6px 0 var(--c-ink),
+    8px 10px 24px rgba(0,0,0,0.7);
+  overflow: hidden;
+  /* Subtle inner grid lines via CSS gradient */
+  background-image: repeating-linear-gradient(
+    var(--c-grid-line) 0, var(--c-grid-line) 1px,
+    transparent 1px, transparent var(--cell)
+  ),
+  repeating-linear-gradient(
+    90deg,
+    var(--c-grid-line) 0, var(--c-grid-line) 1px,
+    transparent 1px, transparent var(--cell)
+  ),
+  linear-gradient(180deg, var(--c-bg-board) 0%, #0B0B18 100%);
+}
+
+.board-wrapper--ai {
+  box-shadow:
+    var(--sh-board),
+    var(--sh-glow-ai),
+    6px 6px 0 var(--c-ink),
+    8px 10px 24px rgba(0,0,0,0.7);
+}
+
+.tetris-board {
+  width: var(--board-w);
+  height: var(--board-h);
+  display: block;
+  position: relative;
+  z-index: 1;
+  image-rendering: pixelated;
+}
+
+/* Line-clear white flash */
+.board-flash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  border-radius: 3px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity var(--td-snap) linear;
+}
+
+.board-flash.is-flashing {
+  animation: board-flash-anim 220ms ease-out forwards;
+}
+
+/* Effect overlay (gravity, blind, mirror) */
+.board-fx-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity var(--td-fast) var(--te-out);
+}
+
+.board-fx-overlay.fx-blind {
+  background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.85) 50%, transparent 70%);
+  opacity: 1;
+}
+
+.board-fx-overlay.fx-mirror {
+  background: rgba(91, 155, 245, 0.18);
+  opacity: 1;
+}
+
+.board-fx-overlay.fx-gravity {
+  background: rgba(255, 64, 64, 0.15);
+  opacity: 1;
+}
+
+/* State overlay (pause / game over) */
+.board-state-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 8, 24, 0.7);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity var(--td-normal) var(--te-out);
+}
+
+.board-state-overlay.is-active { opacity: 1; }
+
+
+/* ─────────────────────────────────────────────────────────────
+   8. COMBO TOAST
+   ───────────────────────────────────────────────────────────── */
+.combo-toast {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.6);
+  background: var(--c-yellow);
+  border: var(--bd-ink);
+  border-radius: 12px;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  pointer-events: none;
+  z-index: var(--z-toast);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-player);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.combo-toast[data-hidden="false"] {
+  animation: combo-pop var(--td-normal) var(--te-spring) forwards;
+}
+
+.combo-toast--ai {
+  background: var(--c-red);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-ai);
+}
+
+.combo-toast-count {
+  font-family: var(--ff-display);
+  font-size: var(--fs-2xl);
+  color: var(--c-ink);
+  line-height: 1;
+}
+
+.combo-toast-label {
+  font-family: var(--ff-display);
+  font-size: var(--fs-lg);
+  color: var(--c-ink);
+  letter-spacing: 0.06em;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   9. INCOMING ATTACK WARNING
+   ───────────────────────────────────────────────────────────── */
+.incoming-warning {
+  position: absolute;
+  top: 56px;
+  right: -36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--td-fast) var(--te-out);
+  pointer-events: none;
+}
+
+.incoming-warning.is-visible { opacity: 1; }
+
+.player-zone--ai .incoming-warning {
+  right: auto;
+  left: -36px;
+}
+
+.incoming-icon { font-size: var(--fs-lg); animation: pulse-bob 0.8s ease-in-out infinite; }
+
+.incoming-count {
+  font-family: var(--ff-display);
+  font-size: var(--fs-md);
+  color: var(--c-red);
+  text-shadow: var(--sh-ink-sm);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   10. BATTLE ZONE — center column
+   ───────────────────────────────────────────────────────────── */
+.battle-zone {
+  flex: 1;
+  min-width: 160px;
+  max-width: 192px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: 4px;
+}
+
+
+/* ── VS Emblem ── */
+.vs-emblem {
+  background: var(--c-bg-panel);
+  border: 4px solid var(--c-ink);
+  border-radius: 50%;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--sh-ink-lg), var(--sh-glow-blue), var(--sh-panel);
+  flex-shrink: 0;
+}
+
+.vs-text {
+  font-family: var(--ff-display);
+  font-size: var(--fs-3xl);
+  color: var(--c-blue);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-shadow: var(--sh-ink-sm);
+}
+
+
+/* ── Battle Status Banner ── */
+.battle-status-banner {
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 8px;
+  padding: 4px 10px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--sh-ink-sm), var(--sh-panel);
+  overflow: hidden;
+}
+
+#battle-status-text {
+  font-family: var(--ff-display);
+  font-size: var(--fs-md);
+  letter-spacing: 0.08em;
+  color: var(--c-text-secondary);
+}
+
+
+/* ── Penalty Transfer Lane ── */
+.penalty-transfer-lane {
+  width: 100%;
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 12px;
+  padding: var(--sp-2) var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel);
+  min-height: 180px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle sweep gradient background effect */
+.penalty-transfer-lane::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(255,194,52,0.06) 0%,
+    transparent 40%,
+    transparent 60%,
+    rgba(255,64,64,0.06) 100%
+  );
+  pointer-events: none;
+}
+
+.attack-queue-viz {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  min-height: 60px;
+  padding: var(--sp-1);
+}
+
+/* Individual attack block pills (JS will create these) */
+.atk-block {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--c-ink);
+  border-radius: 3px;
+  box-shadow: var(--sh-ink-sm);
+  flex-shrink: 0;
+}
+
+.atk-block--garbage  { background: var(--c-text-muted); }
+.atk-block--mirror   { background: var(--c-blue); }
+.atk-block--gravity  { background: var(--c-orange); }
+.atk-block--blind    { background: var(--c-purple); }
+
+.transfer-divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  position: relative;
+}
+
+.transfer-divider::before,
+.transfer-divider::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--c-border-panel));
+}
+
+.transfer-divider::after {
+  background: linear-gradient(270deg, transparent, var(--c-border-panel));
+}
+
+.transfer-bolt {
+  font-size: var(--fs-xl);
+  line-height: 1;
+  animation: pulse-bob 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 220, 60, 0.6));
+}
+
+
+/* ── Control Cards (Attack Mode + Difficulty) ── */
+.control-card {
+  width: 100%;
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 12px;
+  padding: var(--sp-2) var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  box-shadow: var(--sh-inner-hi), var(--sh-ink-sm), var(--sh-panel);
+}
+
+.penalty-btn-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  width: 100%;
+}
+
+.penalty-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 4px;
+  background: rgba(0,0,0,0.25);
+  border: var(--bd-ink);
+  border-radius: 8px;
+  color: var(--c-text-secondary);
+  box-shadow: var(--sh-btn);
+  transition:
+    background var(--td-fast) var(--te-out),
+    box-shadow var(--td-fast) var(--te-out),
+    transform var(--td-fast) var(--te-out),
+    color var(--td-fast) var(--te-out);
+  cursor: pointer;
+}
+
+.penalty-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--c-text-primary);
+}
+
+.penalty-btn:active {
+  box-shadow: var(--sh-btn-press);
+  transform: translate(2px, 2px);
+}
+
+.penalty-btn--active {
+  background: var(--c-yellow);
+  color: var(--c-ink);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-player);
+}
+
+.penalty-btn--active:hover {
+  background: #FFD060;
+  color: var(--c-ink);
+}
+
+.penalty-icon { font-size: var(--fs-md); line-height: 1; }
+
+.penalty-name {
+  font-family: var(--ff-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.diff-btn-group {
+  display: flex;
+  gap: 5px;
+  width: 100%;
+}
+
+.diff-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  background: rgba(0,0,0,0.25);
+  border: var(--bd-ink);
+  border-radius: 8px;
+  color: var(--c-text-secondary);
+  box-shadow: var(--sh-btn);
+  transition:
+    background var(--td-fast) var(--te-out),
+    box-shadow var(--td-fast) var(--te-out),
+    transform var(--td-fast) var(--te-out),
+    color var(--td-fast) var(--te-out);
+  cursor: pointer;
+}
+
+.diff-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--c-text-primary);
+}
+
+.diff-btn:active {
+  box-shadow: var(--sh-btn-press);
+  transform: translate(2px, 2px);
+}
+
+.diff-btn--active {
+  background: var(--c-blue);
+  color: var(--c-ink);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-blue);
+}
+
+.diff-btn--active:hover {
+  background: #7CB8FF;
+  color: var(--c-ink);
+}
+
+.diff-face {
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+
+.diff-name {
+  font-family: var(--ff-display);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+/* start-screen difficulty group inherits but is wider */
+.diff-btn-group--start .diff-btn {
+  font-size: var(--fs-base);
+  padding: 8px 12px;
+  flex-direction: row;
+  gap: var(--sp-1);
+}
+
+
+/* ── Controls Hint ── */
+.controls-hint {
+  width: 100%;
+  background: rgba(0,0,0,0.25);
+  border: var(--bd-panel);
+  border-radius: 10px;
+  padding: var(--sp-2) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hint-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.hint-row kbd { flex-shrink: 0; }
+
+
+/* ─────────────────────────────────────────────────────────────
+   11. TBAG SPEECH BUBBLE
+   ───────────────────────────────────────────────────────────── */
+.tbag-bubble {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  background: var(--c-bg-panel);
+  border: var(--bd-ink);
+  border-radius: 14px;
+  padding: 8px 14px;
+  z-index: var(--z-toast);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-ai), var(--sh-panel);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 260px;
+  text-align: center;
+}
+
+.tbag-bubble[data-hidden="false"] {
+  animation: tbag-pop var(--td-slow) var(--te-spring) forwards;
+}
+
+.bubble-tail {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 14px solid var(--c-ink);
+}
+
+.bubble-tail::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 13px solid var(--c-bg-panel);
+}
+
+.bubble-text {
+  font-family: var(--ff-display);
+  font-size: var(--fs-base);
+  letter-spacing: 0.04em;
+  color: var(--c-text-primary);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   12. SCREEN OVERLAYS (Start / Result / Pause / Countdown)
+   ───────────────────────────────────────────────────────────── */
+.screen-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-bg-overlay);
+  z-index: var(--z-overlay);
+  backdrop-filter: blur(4px);
+}
+
+.screen-overlay[data-hidden="true"] {
+  display: none;
+}
+
+.screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-8);
+  background: var(--c-bg-panel);
+  border: 4px solid var(--c-ink);
+  border-radius: 24px;
+  box-shadow: var(--sh-ink-lg), var(--sh-panel), 0 0 80px rgba(0,0,0,0.8);
+  max-width: 520px;
+  width: 90%;
+  animation: pop-in var(--td-slow) var(--te-spring) both;
+}
+
+.screen-content--compact { gap: var(--sp-4); padding: var(--sp-6); max-width: 320px; }
+
+
+/* ── Game Title ── */
+.title-lockup { text-align: center; }
+
+.game-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.9;
+  user-select: none;
+}
+
+.title-line {
+  font-family: var(--ff-display);
+  letter-spacing: 0.06em;
+  color: var(--c-text-primary);
+  text-shadow: var(--sh-ink-lg);
+  display: block;
+}
+
+.title-top {
+  font-size: var(--fs-hero);
+  color: var(--c-yellow);
+  animation: title-pop 0.7s var(--te-spring) 0.1s both;
+}
+
+.title-bottom {
+  font-size: calc(var(--fs-hero) * 1.1);
+  color: var(--c-text-primary);
+  animation: title-pop 0.7s var(--te-spring) 0.25s both;
+}
+
+.game-subtitle {
+  font-size: var(--fs-base);
+  color: var(--c-text-secondary);
+  letter-spacing: 0.06em;
+  margin-top: var(--sp-2);
+  text-align: center;
+}
+
+
+/* ── Start Controls ── */
+.start-controls { width: 100%; }
+
+.start-difficulty-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.start-label {
+  font-family: var(--ff-display);
+  font-size: var(--fs-lg);
+  letter-spacing: 0.1em;
+  color: var(--c-text-secondary);
+}
+
+.start-hint {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  letter-spacing: 0.04em;
+}
+
+
+/* ── CTA Buttons ── */
+.cta-btn {
+  background: var(--c-yellow);
+  border: 4px solid var(--c-ink);
+  border-radius: 14px;
+  padding: 0;
+  box-shadow: var(--sh-ink-lg), var(--sh-glow-player);
+  transition:
+    box-shadow var(--td-fast) var(--te-out),
+    transform var(--td-fast) var(--te-out);
+  cursor: pointer;
+}
+
+.cta-btn:hover {
+  box-shadow: 4px 4px 0 var(--c-ink), var(--sh-glow-player), 0 0 32px rgba(255,194,52,0.25);
+  transform: translateY(-2px);
+}
+
+.cta-btn:active {
+  box-shadow: var(--sh-btn-press);
+  transform: translate(2px, 2px);
+}
+
+.btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  padding: 14px 40px;
+  font-family: var(--ff-display);
+  font-size: var(--fs-2xl);
+  letter-spacing: 0.08em;
+  color: var(--c-ink);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.cta-btn--sm { border-radius: 10px; }
+.cta-btn--sm .btn-inner { padding: 10px 28px; font-size: var(--fs-xl); }
+
+.cta-btn--rematch {
+  background: var(--c-green);
+  box-shadow: var(--sh-ink-lg), 0 0 24px rgba(93, 189, 71, 0.35);
+}
+.cta-btn--rematch:hover {
+  box-shadow: 4px 4px 0 var(--c-ink), 0 0 32px rgba(93, 189, 71, 0.4);
+}
+
+.cta-btn--menu {
+  background: var(--c-bg-panel);
+  box-shadow: var(--sh-ink-md);
+}
+.cta-btn--menu .btn-inner { color: var(--c-text-primary); }
+
+.cta-btn--danger {
+  background: var(--c-red);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-ai);
+}
+.cta-btn--danger .btn-inner { color: var(--c-text-primary); }
+
+.result-actions {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+
+/* ── Result Screen ── */
+.result-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.result-text {
+  font-family: var(--ff-display);
+  font-size: var(--fs-hero);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  text-shadow: var(--sh-ink-lg);
+  animation: title-pop 0.6s var(--te-spring) both;
+}
+
+/* result win vs lose coloring set by JS via data attribute */
+#result-screen[data-result="win"]  .result-text { color: var(--c-yellow); }
+#result-screen[data-result="lose"] .result-text { color: var(--c-red); }
+
+.result-sub {
+  font-family: var(--ff-display);
+  font-size: var(--fs-xl);
+  color: var(--c-text-secondary);
+  letter-spacing: 0.06em;
+}
+
+.result-stats {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Individual stat tiles – JS creates .result-stat-tile elements */
+.result-stat-tile {
+  background: rgba(0,0,0,0.3);
+  border: var(--bd-ink);
+  border-radius: 10px;
+  padding: var(--sp-2) var(--sp-3);
+  text-align: center;
+  min-width: 90px;
+  box-shadow: var(--sh-ink-sm);
+}
+
+.result-stat-tile .stat-label { display: block; margin-bottom: 4px; }
+.result-stat-tile .stat-value { font-size: var(--fs-xl); color: var(--c-yellow); }
+
+
+/* ── Pause Screen ── */
+.screen-overlay--pause { background: rgba(10, 8, 24, 0.75); }
+
+.pause-icon {
+  font-size: 56px;
+  line-height: 1;
+  animation: pulse-bob 1.4s ease-in-out infinite;
+}
+
+.pause-label {
+  font-family: var(--ff-display);
+  font-size: var(--fs-3xl);
+  letter-spacing: 0.1em;
+  color: var(--c-text-primary);
+  text-shadow: var(--sh-ink-md);
+}
+
+
+/* ── Countdown Screen ── */
+.screen-overlay--countdown {
+  background: rgba(10, 8, 24, 0.65);
+  pointer-events: none;
+}
+
+.countdown-number {
+  font-family: var(--ff-display);
+  font-size: calc(var(--fs-hero) * 2);
+  color: var(--c-yellow);
+  text-shadow: var(--sh-ink-lg), var(--sh-glow-player);
+  line-height: 1;
+  animation: countdown-pop 0.9s var(--te-spring) both;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   13. PENALTY BLOCK PARTICLES (JS-spawned, CSS-animated)
+   JS creates elements with class .penalty-particle and sets
+   CSS custom properties --px, --py, --tx, --ty for motion.
+   ───────────────────────────────────────────────────────────── */
+.penalty-particle {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--c-ink);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: calc(var(--z-particle) + 1);
+  box-shadow: var(--sh-ink-sm);
+  transform-origin: center center;
+}
+
+.penalty-particle.phase-gather {
+  animation: particle-gather var(--td-gather) var(--te-out) forwards;
+}
+
+.penalty-particle.phase-launch {
+  animation: particle-launch var(--td-launch) var(--te-snap) forwards;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   14. KEYFRAME ANIMATIONS
+   ───────────────────────────────────────────────────────────── */
+
+/* Generic pop-in for overlays / cards */
+@keyframes pop-in {
+  0%   { transform: scale(0.7) rotate(-4deg); opacity: 0; }
+  60%  { transform: scale(1.06) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Title lines staggered pop */
+@keyframes title-pop {
+  0%   { transform: scale(0.6) rotate(-5deg); opacity: 0; }
+  55%  { transform: scale(1.08) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Bounce drop (blocks falling into place) */
+@keyframes bounce-drop {
+  0%   { transform: translateY(-16px); }
+  55%  { transform: translateY(4px); }
+  75%  { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
+/* Board shake on penalty hit */
+@keyframes board-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  18%  { transform: translateX(-9px) rotate(-0.8deg); }
+  36%  { transform: translateX(8px) rotate(0.6deg); }
+  54%  { transform: translateX(-6px) rotate(-0.4deg); }
+  72%  { transform: translateX(5px) rotate(0.3deg); }
+  88%  { transform: translateX(-3px); }
+}
+
+/* Line clear flash */
+@keyframes board-flash-anim {
+  0%   { opacity: 0.7; }
+  30%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Combo toast entrance */
+@keyframes combo-pop {
+  0%   { transform: translateX(-50%) scale(0.5) translateY(12px); opacity: 0; }
+  55%  { transform: translateX(-50%) scale(1.15) translateY(-4px); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
+}
+
+/* Tbag bubble entrance */
+@keyframes tbag-pop {
+  0%   { transform: translateX(-50%) scale(0.5); opacity: 0; }
+  55%  { transform: translateX(-50%) scale(1.1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* Tbag bounce idle */
+@keyframes tbag-bounce {
+  0%   { transform: translateX(-50%) translateY(0) scale(1); }
+  25%  { transform: translateX(-50%) translateY(-6px) scale(1.04); }
+  50%  { transform: translateX(-50%) translateY(0) scale(0.97); }
+  75%  { transform: translateX(-50%) translateY(-3px) scale(1.01); }
+  100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* Gentle pulse bob (warnings, icons) */
+@keyframes pulse-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* Countdown number pop-then-fade */
+@keyframes countdown-pop {
+  0%   { transform: scale(1.6); opacity: 0; }
+  30%  { transform: scale(0.9); opacity: 1; }
+  70%  { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+
+/* Attack block gather toward center */
+@keyframes particle-gather {
+  0%   {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  80%  {
+    transform: translate(var(--tx, 0px), var(--ty, -60px)) scale(0.6) rotate(var(--rot, 30deg));
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--tx, 0px), var(--ty, -60px)) scale(0.5) rotate(var(--rot, 40deg));
+    opacity: 0.7;
+  }
+}
+
+/* Attack block launch across to opponent */
+@keyframes particle-launch {
+  0%   {
+    transform: translate(var(--tx, 0px), var(--ty, -60px)) scale(0.5);
+    opacity: 0.9;
+  }
+  40%  {
+    transform: translate(var(--lx, 100px), var(--ly, -80px)) scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--fx, 200px), var(--fy, 100px)) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Health bar low pulse */
+@keyframes health-danger {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+/* Score pop on increment */
+@keyframes score-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.3); color: var(--c-yellow); }
+  100% { transform: scale(1); }
+}
+
+/* VS emblem idle spin-pulse */
+@keyframes vs-glow {
+  0%, 100% { box-shadow: var(--sh-ink-lg), var(--sh-glow-blue); }
+  50%      { box-shadow: var(--sh-ink-lg), 0 0 32px rgba(91,155,245,0.5), 0 0 64px rgba(91,155,245,0.25); }
+}
+
+/* Lightning bolt pulse */
+@keyframes bolt-flash {
+  0%, 80%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(255,220,60,0.5)); }
+  40%           { opacity: 0.6; filter: drop-shadow(0 0 10px rgba(255,220,60,0.9)); }
+}
+
+/* Block row clear sweep */
+@keyframes row-clear-sweep {
+  0%   { transform: scaleX(1); opacity: 1; filter: brightness(1); }
+  40%  { filter: brightness(2.5); opacity: 1; }
+  100% { transform: scaleX(0); opacity: 0; }
+}
+
+/* Landing thud (piece locks) */
+@keyframes board-thud {
+  0%   { transform: scaleX(1) scaleY(1); }
+  30%  { transform: scaleX(1.01) scaleY(0.99); }
+  70%  { transform: scaleX(0.995) scaleY(1.005); }
+  100% { transform: scaleX(1) scaleY(1); }
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   15. JS-TRIGGERED ANIMATION CLASSES
+   ───────────────────────────────────────────────────────────── */
+
+/* Applied to .board-wrapper by JS on piece lock */
+.board-wrapper.is-thud {
+  animation: board-thud var(--td-snap) var(--te-out) forwards;
+}
+
+/* Applied to .board-wrapper by JS on penalty hit */
+.board-wrapper.is-shaking {
+  animation: board-shake 400ms var(--te-out) forwards;
+}
+
+/* Applied to .board-wrapper by JS when health is low */
+.board-wrapper.is-danger .health-fill {
+  animation: health-danger 0.6s ease-in-out infinite;
+}
+
+/* Applied to .vs-emblem continuously after game starts */
+.vs-emblem.is-active {
+  animation: vs-glow 2s ease-in-out infinite;
+}
+
+/* Applied to .transfer-bolt during active send */
+.transfer-bolt.is-sending {
+  animation: bolt-flash 0.3s ease-in-out infinite;
+}
+
+/* Score pop */
+.score-num.is-popping,
+.level-num.is-popping {
+  animation: score-pop var(--td-normal) var(--te-bounce) forwards;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   16. UTILITY
+   ───────────────────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+
+/* data-hidden attribute for JS toggling */
+[data-hidden="true"]  { display: none !important; }
+[data-hidden="false"] { display: flex; }
+
+/* State class applied by JS */
+.is-active  { /* see per-component active rules above */ }
+.is-visible { opacity: 1 !important; }
+.is-hidden  { opacity: 0 !important; pointer-events: none; }
