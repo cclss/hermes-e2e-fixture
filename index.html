@@ -173,6 +173,13 @@
       to   { width: 0%; }
     }
 
+    @keyframes kf-score-bump {
+      0%   { transform: scale(1);    }
+      35%  { transform: scale(1.45); }
+      65%  { transform: scale(0.95); }
+      100% { transform: scale(1);    }
+    }
+
     /* ============================================================
        RESET & BASE
        ============================================================ */
@@ -1122,6 +1129,9 @@
     paper:    'scissors',
   };
 
+  // 이스터에그 문구 — 불공정+패배 시 결과 화면 표시 (design-spec.md §5)
+  var EASTER_EGG_LABEL = '😈 불공정 모드의 저주…';
+
   // 카운트다운 단계 텍스트
   var CD_STEPS = ['가위!', '바위!', '보!'];
 
@@ -1210,11 +1220,17 @@
     E.modeBadge.classList.toggle('hidden', !inGame);
   }
 
-  /** 스코어 UI 갱신 */
+  /** 스코어 UI 갱신 — 증가한 항목에 kf-score-bump 적용 */
   function updateScoreUI() {
+    var prevWin  = +E.scoreWin.textContent  || 0;
+    var prevDraw = +E.scoreDraw.textContent || 0;
+    var prevLose = +E.scoreLose.textContent || 0;
     E.scoreWin.textContent  = state.score.win;
     E.scoreDraw.textContent = state.score.draw;
     E.scoreLose.textContent = state.score.lose;
+    if (state.score.win  > prevWin)  bumpScoreEl(E.scoreWin);
+    if (state.score.draw > prevDraw) bumpScoreEl(E.scoreDraw);
+    if (state.score.lose > prevLose) bumpScoreEl(E.scoreLose);
   }
 
   /** 버튼 리플 효과 */
@@ -1233,6 +1249,13 @@
     el.style.animation = 'none';
     void el.offsetWidth;           // force reflow
     el.style.removeProperty('animation');
+  }
+
+  /** 점수 숫자 bump 애니메이션 — kf-score-bump (design-spec.md §4) */
+  function bumpScoreEl(el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'kf-score-bump var(--duration-normal) var(--easing-bounce) both';
   }
 
   /* ──────────────────────────────────────────────────────────
@@ -1407,7 +1430,7 @@
 
     // 치트 서브텍스트 — 불공정+패배 시만 노출
     if (isUnfairLose) {
-      E.resCurse.textContent = '🤖 치트 모드 발동!';
+      E.resCurse.textContent = EASTER_EGG_LABEL;
       E.resCurse.classList.add('result-curse--visible');
     } else {
       E.resCurse.classList.remove('result-curse--visible');

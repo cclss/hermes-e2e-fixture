@@ -17,10 +17,31 @@
 
 ---
 
-## Audit (2026-06-10)
+## Audit (2026-06-10) — Grain-1
 
-**요약: 신규 프로젝트, 대조 대상 없음.**  
-기존 코드가 없으므로 Token/Component 불일치 분류 불필요. 이 문서가 최초 Spec이다.
+**Grain-1: 기존 Spec ↔ grain-2 구현 코드 대조.**
+
+### 일치
+- `:root` CSS 커스텀 프로퍼티 전체 §8과 1:1 일치
+- §4 정의된 10개 keyframe 모두 코드에 구현됨
+
+### Orphan (코드에 있으나 §4 미등록) — 범위 안, 등록 완료
+- `kf-ripple` — 버튼 클릭 리플 이펙트
+- `kf-badge-pulse` — 불공정 배지 주기적 펄스
+- `kf-progress-bar` — 카운트다운 프로그레스 바
+
+### 부분 불일치 (작업 범위 안 — 교정 완료)
+- `result-curse` 텍스트: 코드 `'🤖 치트 모드 발동!'` ≠ §5 `'😈 불공정 모드의 저주…'`
+  → 코드를 §5 값으로 수정 + `EASTER_EGG_LABEL` 상수로 분리
+
+### 신규 결정 (§3 언급, §4·코드 모두 미구현 → 구현 + §4 기록 완료)
+- `kf-score-bump` — 결과 화면 점수 업데이트 시 bump 애니메이션
+
+### 요약
+- Orphans: 3 Keyframes (등록 완료)
+- 전면 불일치: 0건
+- 부분 불일치: 1건 → 교정 완료
+- 신규 구현: 1건 (kf-score-bump)
 
 ---
 
@@ -210,6 +231,10 @@
 | `kf-screen-slide-up` | translateY(0) + opacity(1) → translateY(-20px) + opacity(0) | 화면 퇴장 |
 | `kf-screen-enter` | translateY(20px) + opacity(0) → translateY(0) + opacity(1) | 화면 진입 |
 | `kf-choice-select` | scale(1) → scale(0.9) → scale(1.1) → scale(1) | 패 선택 버튼 클릭 |
+| `kf-score-bump` | scale(1) → scale(1.45) → scale(0.95) → scale(1), easing-bounce | 점수 카운터 증가 시 강조 (★ grain-1 신규 결정) |
+| `kf-ripple` | scale(0) + opacity(0.6) → scale(2.5) + opacity(0) | 버튼 클릭 리플 이펙트 |
+| `kf-badge-pulse` | box-shadow 저강도 ↔ 고강도 (반복, rgba 255,45,85) | 불공정 모드 배지 주기적 펄스 |
+| `kf-progress-bar` | width 100% → 0% (선형, 1.8s) | 카운트다운 프로그레스 바 진행 |
 
 ---
 
@@ -234,6 +259,10 @@
 | **배지 위치** | 화면 상단 우측 고정 | 화면 상단 우측 고정 |
 | **컴퓨터 영역 틴트** | 없음 | 반투명 레드 오버레이 (`rgba(255,45,85,0.07)`) |
 | **결과 화면 추가 텍스트** | 없음 | LOSE 시 "😈 불공정 모드의 저주…" 표시 |
+
+> **★ Grain-1 신규 결정 — EASTER_EGG_LABEL 상수 분리**  
+> 결과 화면 불공정+패배 시 표시 문구 `"😈 불공정 모드의 저주…"` 는 JS 상수 `EASTER_EGG_LABEL`로 분리한다.  
+> 불공정 모드 컴퓨터 카드 이모지도 패배 시 `😈`로 교체된다 (컴퓨터 실제 패 라벨은 유지).
 
 ---
 
