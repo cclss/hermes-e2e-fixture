@@ -1097,7 +1097,378 @@
 </div>
 
 <script>
-  /* grain-2: JS 이벤트 핸들러 예약 블록 — grain-3에서 구현 */
+  /* ============================================================
+     가위바위보 — Vanilla JS Game Engine
+     Grain-3 구현 · 2026-06-10
+     Design Spec 모션 토큰 참조: design-spec.md §4
+     ============================================================ */
+  'use strict';
+
+  /* ──────────────────────────────────────────────────────────
+     1. CONSTANTS
+  ────────────────────────────────────────────────────────── */
+  var CHOICES = ['scissors', 'rock', 'paper'];
+
+  var META = {
+    scissors: { emoji: '✌️',  label: '가위' },
+    rock:     { emoji: '🤜', label: '바위' },
+    paper:    { emoji: '🖐',  label: '보'   },
+  };
+
+  // BEATS[x] = 가 x를 이기는 패 (컴퓨터가 불공정 모드에서 이 값을 70% 선택)
+  var BEATS = {
+    scissors: 'rock',
+    rock:     'paper',
+    paper:    'scissors',
+  };
+
+  // 카운트다운 단계 텍스트
+  var CD_STEPS = ['가위!', '바위!', '보!'];
+
+  // Design Spec 모션 토큰 → JS ms 값 (§4 Duration)
+  var DUR = {
+    FAST:           150,   // --duration-fast
+    NORMAL:         300,   // --duration-normal
+    COUNTDOWN_STEP: 600,   // --duration-countdown-step
+    REVEAL:         500,   // --duration-reveal
+  };
+
+  /* ──────────────────────────────────────────────────────────
+     2. STATE
+  ────────────────────────────────────────────────────────── */
+  var state = {
+    fsm:        'start',   // 'start' | 'playing' | 'countdown' | 'result'
+    mode:       'fair',    // 'fair'  | 'unfair'
+    userChoice: null,      // 'scissors' | 'rock' | 'paper'
+    compChoice: null,
+    outcome:    null,      // 'win' | 'lose' | 'draw'
+    score:      { win: 0, draw: 0, lose: 0 },
+    busy:       false,     // FSM 이중진입 방어 플래그
+  };
+
+  /* ──────────────────────────────────────────────────────────
+     3. DOM REFS
+  ────────────────────────────────────────────────────────── */
+  function $(id) { return document.getElementById(id); }
+
+  var S = {                          // Screens
+    start:     $('start-screen'),
+    game:      $('game-screen'),
+    countdown: $('countdown-screen'),
+    result:    $('result-screen'),
+  };
+
+  var E = {                          // Elements
+    modeFair:       $('mode-fair'),
+    modeUnfair:     $('mode-unfair'),
+    btnStart:       $('btn-start'),
+    modeBadge:      $('mode-badge'),
+    modeBadgeIcon:  $('mode-badge-icon'),
+    modeBadgeLabel: $('mode-badge-label'),
+    scoreWin:       $('score-win'),
+    scoreDraw:      $('score-draw'),
+    scoreLose:      $('score-lose'),
+    btnEnd:         $('btn-end'),
+    cdText:         $('countdown-text'),
+    cdUserEmoji:    $('countdown-user-emoji'),
+    cdUserLabel:    $('countdown-user-label'),
+    cdProgFill:     $('countdown-progress-fill'),
+    resBanner:      $('result-banner'),
+    resOverlay:     $('result-overlay'),
+    resUserEmoji:   $('result-user-emoji'),
+    resUserLabel:   $('result-user-label'),
+    resCompEmoji:   $('result-computer-emoji'),
+    resCompLabel:   $('result-computer-label'),
+    resCompCard:    $('result-computer-card'),
+    resCurse:       $('result-curse'),
+    btnNext:        $('btn-next'),
+  };
+
+  /* ──────────────────────────────────────────────────────────
+     4. INIT — mode-badge DOM 재배치
+     (game-screen 자식 → app 직계 자식)
+     position:fixed 렌더링 위치는 동일, hidden 제어를 JS가 담당
+  ────────────────────────────────────────────────────────── */
+  (function hoistBadge() {
+    document.getElementById('app').appendChild(E.modeBadge);
+    E.modeBadge.classList.add('hidden');
+  }());
+
+  /* ──────────────────────────────────────────────────────────
+     5. HELPERS
+  ────────────────────────────────────────────────────────── */
+
+  /** 화면 전환 — .hidden 토글 헬퍼 */
+  function showScreen(name) {
+    Object.keys(S).forEach(function(k) {
+      S[k].classList.add('hidden');
+    });
+    if (S[name]) S[name].classList.remove('hidden');
+
+    // 배지는 playing/countdown/result 중에만 표시
+    var inGame = (name === 'game' || name === 'countdown' || name === 'result');
+    E.modeBadge.classList.toggle('hidden', !inGame);
+  }
+
+  /** 스코어 UI 갱신 */
+  function updateScoreUI() {
+    E.scoreWin.textContent  = state.score.win;
+    E.scoreDraw.textContent = state.score.draw;
+    E.scoreLose.textContent = state.score.lose;
+  }
+
+  /** 버튼 리플 효과 */
+  function addRipple(btn, event) {
+    var r = document.createElement('span');
+    r.className = 'ripple';
+    var rect = btn.getBoundingClientRect();
+    r.style.left = (event.clientX - rect.left) + 'px';
+    r.style.top  = (event.clientY - rect.top)  + 'px';
+    btn.appendChild(r);
+    r.addEventListener('animationend', function() { r.remove(); });
+  }
+
+  /** CSS 애니메이션 재실행 (동일 요소에 같은 animation 재트리거) */
+  function retriggerAnimation(el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;           // force reflow
+    el.style.removeProperty('animation');
+  }
+
+  /* ──────────────────────────────────────────────────────────
+     6. GAME LOGIC
+  ────────────────────────────────────────────────────────── */
+
+  /**
+   * 컴퓨터 패 결정
+   * 공정: 균등 1/3 랜덤
+   * 불공정: 70% 사용자 패배 패, 30% 나머지(무/승) 중 랜덤
+   */
+  function getCompChoice(userChoice) {
+    if (state.mode === 'fair') {
+      return CHOICES[Math.floor(Math.random() * CHOICES.length)];
+    }
+    // unfair
+    if (Math.random() < 0.70) {
+      return BEATS[userChoice];   // 사용자를 이기는 패
+    }
+    // 나머지 30%: 사용자가 이기거나 비기는 패 (= 사용자를 이기는 패 제외)
+    var remaining = CHOICES.filter(function(c) { return c !== BEATS[userChoice]; });
+    return remaining[Math.floor(Math.random() * remaining.length)];
+  }
+
+  /**
+   * 승패 판정
+   * BEATS[comp] = comp를 이기는 패, 그것이 user와 같으면 user 승
+   */
+  function calcOutcome(user, comp) {
+    if (user === comp) return 'draw';
+    if (BEATS[comp] === user) return 'win';
+    return 'lose';
+  }
+
+  /* ──────────────────────────────────────────────────────────
+     7. MODE SELECTION
+  ────────────────────────────────────────────────────────── */
+  function selectMode(mode) {
+    state.mode = mode;
+    E.modeFair.classList.toggle('mode-card--active', mode === 'fair');
+    E.modeFair.setAttribute('aria-pressed', String(mode === 'fair'));
+    E.modeUnfair.classList.toggle('mode-card--active', mode === 'unfair');
+    E.modeUnfair.setAttribute('aria-pressed', String(mode === 'unfair'));
+  }
+
+  E.modeFair.addEventListener('click', function() {
+    if (state.fsm !== 'start') return;
+    selectMode('fair');
+  });
+
+  E.modeUnfair.addEventListener('click', function() {
+    if (state.fsm !== 'start') return;
+    selectMode('unfair');
+  });
+
+  /* ──────────────────────────────────────────────────────────
+     8. START → PLAYING
+  ────────────────────────────────────────────────────────── */
+  E.btnStart.addEventListener('click', function(e) {
+    if (state.busy || state.fsm !== 'start') return;
+
+    addRipple(this, e);
+    state.fsm = 'playing';
+
+    // 모드 배지 업데이트
+    var isFair = (state.mode === 'fair');
+    E.modeBadge.className = 'mode-badge ' + (isFair ? 'mode-badge--fair' : 'mode-badge--unfair');
+    E.modeBadgeIcon.textContent  = isFair ? '⚖️' : '😈';
+    E.modeBadgeLabel.textContent = isFair ? '공정' : '불공정';
+
+    updateScoreUI();
+    showScreen('game');
+  });
+
+  /* ──────────────────────────────────────────────────────────
+     9. PLAYING → COUNTDOWN (패 선택)
+  ────────────────────────────────────────────────────────── */
+  document.querySelectorAll('.btn-choice').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      if (state.busy || state.fsm !== 'playing') return;
+
+      state.busy       = true;
+      state.userChoice = this.dataset.choice;
+      state.fsm        = 'countdown';
+
+      addRipple(this, e);
+
+      // 카운트다운 화면 사용자 패 표시 설정
+      var meta = META[state.userChoice];
+      E.cdUserEmoji.textContent = meta.emoji;
+      E.cdUserLabel.textContent = meta.label + ' 선택됨';
+
+      showScreen('countdown');
+      runCountdown();
+    });
+  });
+
+  /* ──────────────────────────────────────────────────────────
+     10. COUNTDOWN SEQUENCE
+     각 스텝: 가위!(600ms) → 바위!(600ms) → 보!(600ms) → result 전환
+     CSS animation kf-countdown-pulse 매 스텝 재실행
+     Progress bar kf-progress-bar 1.8s (= 3 × 600ms) 동기화
+  ────────────────────────────────────────────────────────── */
+  function runCountdown() {
+    // 프로그레스 바 애니메이션 재시작
+    retriggerAnimation(E.cdProgFill);
+
+    var step = 0;
+
+    function showStep() {
+      var word = CD_STEPS[step];
+      E.cdText.textContent = word;
+
+      // 마지막 "보!"는 gradient 스타일 추가
+      if (step === CD_STEPS.length - 1) {
+        E.cdText.classList.add('countdown-display__text--final');
+      } else {
+        E.cdText.classList.remove('countdown-display__text--final');
+      }
+
+      // CSS 애니메이션 kf-countdown-pulse 재실행
+      retriggerAnimation(E.cdText);
+
+      step += 1;
+
+      if (step < CD_STEPS.length) {
+        setTimeout(showStep, DUR.COUNTDOWN_STEP);
+      } else {
+        // "보!" 애니메이션이 끝난 뒤 result 전환
+        setTimeout(goToResult, DUR.COUNTDOWN_STEP);
+      }
+    }
+
+    showStep();
+  }
+
+  /* ──────────────────────────────────────────────────────────
+     11. RESULT SCREEN
+  ────────────────────────────────────────────────────────── */
+  function goToResult() {
+    // 컴퓨터 패 결정 + 승패 판정
+    state.compChoice = getCompChoice(state.userChoice);
+    state.outcome    = calcOutcome(state.userChoice, state.compChoice);
+
+    // 점수 누적
+    state.score[state.outcome] += 1;
+    updateScoreUI();
+
+    var userMeta  = META[state.userChoice];
+    var compMeta  = META[state.compChoice];
+    var isUnfairLose = (state.mode === 'unfair' && state.outcome === 'lose');
+
+    // 결과 배너
+    var bannerText  = { win: 'WIN! 🎉', lose: 'LOSE 💀', draw: 'DRAW 🤝' };
+    var bannerCls   = { win: 'result-banner--win', lose: 'result-banner--lose', draw: 'result-banner--draw' };
+    E.resBanner.textContent = bannerText[state.outcome];
+    E.resBanner.className   = 'result-banner ' + bannerCls[state.outcome];
+    retriggerAnimation(E.resBanner);
+
+    // 배경 오버레이
+    var overlayCls = { win: 'result-overlay--win', lose: 'result-overlay--lose', draw: 'result-overlay--draw' };
+    E.resOverlay.className = 'result-overlay ' + overlayCls[state.outcome];
+
+    // 사용자 패 카드
+    E.resUserEmoji.textContent = userMeta.emoji;
+    E.resUserLabel.textContent = userMeta.label;
+
+    // 컴퓨터 패 카드 — 불공정+패배 시 이빌 이모지 이스터에그
+    E.resCompEmoji.textContent = isUnfairLose ? '😈' : compMeta.emoji;
+    E.resCompLabel.textContent = compMeta.label;
+    E.resCompCard.classList.toggle('unfair-tint', state.mode === 'unfair');
+
+    // 치트 서브텍스트 — 불공정+패배 시만 노출
+    if (isUnfairLose) {
+      E.resCurse.textContent = '🤖 치트 모드 발동!';
+      E.resCurse.classList.add('result-curse--visible');
+    } else {
+      E.resCurse.classList.remove('result-curse--visible');
+    }
+
+    state.fsm  = 'result';
+    state.busy = false;
+
+    showScreen('result');
+  }
+
+  /* ──────────────────────────────────────────────────────────
+     12. NEXT ROUND (다음 라운드 ▶)
+  ────────────────────────────────────────────────────────── */
+  E.btnNext.addEventListener('click', function(e) {
+    if (state.busy || state.fsm !== 'result') return;
+    state.busy = true;
+
+    addRipple(this, e);
+
+    state.fsm        = 'playing';
+    state.userChoice = null;
+    state.compChoice = null;
+    state.outcome    = null;
+
+    // 짧은 딜레이 후 전환 (리플 애니메이션 끝날 여유)
+    var self = this;
+    setTimeout(function() {
+      state.busy = false;
+      showScreen('game');
+    }, DUR.FAST);
+  });
+
+  /* ──────────────────────────────────────────────────────────
+     13. END GAME (게임 종료)
+  ────────────────────────────────────────────────────────── */
+  E.btnEnd.addEventListener('click', function() {
+    if (state.busy || state.fsm !== 'playing') return;
+    state.busy = true;
+
+    // 전체 상태 초기화
+    state.fsm        = 'start';
+    state.userChoice = null;
+    state.compChoice = null;
+    state.outcome    = null;
+    state.score      = { win: 0, draw: 0, lose: 0 };
+
+    // 모드를 공정으로 리셋
+    selectMode('fair');
+
+    setTimeout(function() {
+      state.busy = false;
+      showScreen('start');
+    }, DUR.FAST);
+  });
+
+  /* ──────────────────────────────────────────────────────────
+     14. INITIAL RENDER
+  ────────────────────────────────────────────────────────── */
+  showScreen('start');
+
 </script>
 </body>
 </html>
