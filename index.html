@@ -135,6 +135,12 @@
       --ease-accelerate: cubic-bezier(0.4,0,1,1);
       --ease-spring:     cubic-bezier(0.34,1.56,0.64,1);
       --ease-bounce:     cubic-bezier(0.175,0.885,0.32,1.275);
+
+      /* filter-effects */
+      --text-glow-primary:   drop-shadow(0 0 24px rgba(124,58,237,0.45));
+      --text-glow-secondary: drop-shadow(0 0 16px rgba(236,72,153,0.6));
+      --blur-glass-card:     blur(12px);
+      --blur-glass-overlay:  blur(8px);
     }
 
     /* ─── Reset & Base ─── */
@@ -192,7 +198,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
       text-align: center;
-      filter: drop-shadow(0 0 24px rgba(124,58,237,0.45));
+      filter: var(--text-glow-primary);
     }
 
     .start-subtitle {
@@ -549,8 +555,8 @@
       border-radius: var(--radius-2xl);
       box-shadow: var(--shadow-card);
       text-align: center;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: var(--blur-glass-card);
+      -webkit-backdrop-filter: var(--blur-glass-card);
     }
     .result-badge.show {
       animation: badgeEnter var(--duration-normal) var(--ease-spring) forwards;
@@ -600,8 +606,8 @@
       justify-content: center;
       gap: var(--space-8);
       background: var(--bg-overlay);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: var(--blur-glass-overlay);
+      -webkit-backdrop-filter: var(--blur-glass-overlay);
       opacity: 0;
       pointer-events: none;
       transition: opacity var(--duration-fast) var(--ease-standard);
@@ -634,7 +640,7 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      filter: drop-shadow(0 0 16px rgba(236,72,153,0.6));
+      filter: var(--text-glow-secondary);
       animation: beatPunchBounce var(--duration-countdown-beat) var(--ease-bounce);
     }
     .countdown-text.dissolve {
