@@ -727,10 +727,24 @@ kbd.key {
   flex-shrink: 0;
 }
 
-.atk-block--garbage  { background: var(--c-text-muted); }
-.atk-block--mirror   { background: var(--c-blue); }
-.atk-block--gravity  { background: var(--c-orange); }
-.atk-block--blind    { background: var(--c-purple); }
+/* ── Grain-3: Five penalty flavor attack blocks ── */
+.atk-block--classic {
+  background: #9898AA;
+}
+.atk-block--cheese {
+  background: #CCA066;
+}
+.atk-block--messy {
+  background: #44CC88;
+}
+.atk-block--mirror {
+  background: #4488FF;
+}
+.atk-block--surge {
+  background: #FF2244;
+  animation: surge-atk-pulse 0.35s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(255,34,68,0.7), var(--sh-ink-sm);
+}
 
 .transfer-divider {
   width: 100%;
@@ -782,6 +796,15 @@ kbd.key {
   width: 100%;
 }
 
+/* Surge button spans full width */
+.penalty-btn--wide {
+  grid-column: span 2;
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 5px 8px;
+}
+
 .penalty-btn {
   display: flex;
   flex-direction: column;
@@ -820,6 +843,32 @@ kbd.key {
 .penalty-btn--active:hover {
   background: #FFD060;
   color: var(--c-ink);
+}
+
+/* Flavor-specific active colors */
+.penalty-btn--classic.penalty-btn--active {
+  background: #9898AA;
+  box-shadow: var(--sh-ink-md), 0 0 14px rgba(152,152,170,0.45);
+}
+.penalty-btn--cheese.penalty-btn--active {
+  background: #CCA066;
+  box-shadow: var(--sh-ink-md), 0 0 14px rgba(204,160,102,0.55);
+}
+.penalty-btn--messy.penalty-btn--active {
+  background: #44CC88;
+  color: var(--c-ink);
+  box-shadow: var(--sh-ink-md), 0 0 14px rgba(68,204,136,0.55);
+}
+.penalty-btn--mirror.penalty-btn--active {
+  background: #4488FF;
+  color: var(--c-text-primary);
+  box-shadow: var(--sh-ink-md), 0 0 14px rgba(68,136,255,0.55);
+}
+.penalty-btn--surge.penalty-btn--active {
+  background: #FF2244;
+  color: var(--c-text-primary);
+  box-shadow: var(--sh-ink-md), 0 0 18px rgba(255,34,68,0.60);
+  animation: surge-btn-glow 0.7s ease-in-out infinite;
 }
 
 .penalty-icon { font-size: var(--fs-md); line-height: 1; }
@@ -876,6 +925,19 @@ kbd.key {
 .diff-btn--active:hover {
   background: #7CB8FF;
   color: var(--c-ink);
+}
+
+/* Demon difficulty — sinister red glow */
+.diff-btn--demon.diff-btn--active {
+  background: var(--c-red);
+  color: var(--c-text-primary);
+  box-shadow: var(--sh-ink-md), var(--sh-glow-ai);
+  animation: demon-btn-pulse 1s ease-in-out infinite;
+}
+
+.diff-btn--demon.diff-btn--active:hover {
+  background: #FF6060;
+  color: var(--c-text-primary);
 }
 
 .diff-face {
@@ -944,7 +1006,9 @@ kbd.key {
 }
 
 .tbag-bubble[data-hidden="false"] {
-  animation: tbag-pop var(--td-slow) var(--te-spring) forwards;
+  animation:
+    tbag-pop var(--td-slow) var(--te-spring) forwards,
+    tbag-bounce 1.8s ease-in-out 0.4s infinite;
 }
 
 .bubble-tail {
@@ -1233,8 +1297,8 @@ kbd.key {
 
 /* ─────────────────────────────────────────────────────────────
    13. PENALTY BLOCK PARTICLES (JS-spawned, CSS-animated)
-   JS creates elements with class .penalty-particle and sets
-   CSS custom properties --px, --py, --tx, --ty for motion.
+   JS creates elements with class .penalty-particle--{flavor}
+   and sets CSS custom properties for motion.
    ───────────────────────────────────────────────────────────── */
 .penalty-particle {
   position: fixed;
@@ -1246,6 +1310,22 @@ kbd.key {
   z-index: calc(var(--z-particle) + 1);
   box-shadow: var(--sh-ink-sm);
   transform-origin: center center;
+}
+
+/* Surge particles pulse while gathering */
+.penalty-particle--surge.phase-gather {
+  animation: particle-gather var(--td-gather) var(--te-out) forwards,
+             surge-particle-pulse var(--td-gather) ease-in-out;
+}
+
+/* Mirror particles have a reflection shimmer */
+.penalty-particle--mirror {
+  box-shadow: 0 0 6px rgba(68,136,255,0.8), var(--sh-ink-sm);
+}
+
+/* Messy particles spin faster */
+.penalty-particle--messy.phase-gather {
+  animation: particle-gather-spin calc(var(--td-gather) * 0.85) var(--te-out) forwards;
 }
 
 .penalty-particle.phase-gather {
@@ -1323,6 +1403,16 @@ kbd.key {
   100% { transform: translateX(-50%) translateY(0) scale(1); }
 }
 
+/* Tbag shake for intense taunts */
+@keyframes tbag-shake {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  15%      { transform: translateX(-50%) rotate(-4deg) scale(1.06); }
+  30%      { transform: translateX(-50%) rotate(4deg); }
+  45%      { transform: translateX(-50%) rotate(-3deg); }
+  60%      { transform: translateX(-50%) rotate(3deg); }
+  75%      { transform: translateX(-50%) rotate(-1deg); }
+}
+
 /* Gentle pulse bob (warnings, icons) */
 @keyframes pulse-bob {
   0%, 100% { transform: translateY(0); }
@@ -1375,6 +1465,55 @@ kbd.key {
   50%      { opacity: 0.6; }
 }
 
+/* ── Grain-3 New Keyframes ─────────────────────────────────── */
+
+/* Surge attack block pulse */
+@keyframes surge-atk-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 4px rgba(255,34,68,0.5); }
+  50%      { transform: scale(1.25); opacity: 0.85; box-shadow: 0 0 10px rgba(255,34,68,0.9); }
+}
+
+/* Surge penalty button glow when active */
+@keyframes surge-btn-glow {
+  0%, 100% { box-shadow: var(--sh-ink-md), 0 0 18px rgba(255,34,68,0.60); }
+  50%      { box-shadow: var(--sh-ink-md), 0 0 30px rgba(255,34,68,0.90), 0 0 50px rgba(255,34,68,0.35); }
+}
+
+/* Demon difficulty button pulse */
+@keyframes demon-btn-pulse {
+  0%, 100% { box-shadow: var(--sh-ink-md), var(--sh-glow-ai); }
+  50%      { box-shadow: var(--sh-ink-md), 0 0 32px rgba(255,64,64,0.75), 0 0 60px rgba(255,64,64,0.3); }
+}
+
+/* Surge particle glow while gathering */
+@keyframes surge-particle-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(255,34,68,0.6), var(--sh-ink-sm); }
+  50%      { box-shadow: 0 0 12px rgba(255,34,68,0.95), 0 0 20px rgba(255,34,68,0.45); }
+}
+
+/* Messy particle extra spin gather */
+@keyframes particle-gather-spin {
+  0%   {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  80%  {
+    transform: translate(var(--tx, 0px), var(--ty, -60px)) scale(0.6) rotate(var(--rot, 270deg));
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--tx, 0px), var(--ty, -60px)) scale(0.5) rotate(var(--rot, 360deg));
+    opacity: 0.7;
+  }
+}
+
+/* Surge board warning flash (overlay when surge incoming) */
+@keyframes surge-board-warning {
+  0%, 100% { background: rgba(139,58,74, 0.0);  }
+  30%      { background: rgba(139,58,74, 0.22); }
+  60%      { background: rgba(139,58,74, 0.08); }
+}
+
 /* Score pop on increment */
 @keyframes score-pop {
   0%   { transform: scale(1); }
@@ -1422,6 +1561,11 @@ kbd.key {
 /* Applied to .board-wrapper by JS on penalty hit */
 .board-wrapper.is-shaking {
   animation: board-shake 400ms var(--te-out) forwards;
+}
+
+/* Applied to .board-wrapper during Surge wind-up */
+.board-wrapper.is-surge-incoming {
+  animation: surge-board-warning 0.4s ease-in-out 3;
 }
 
 /* Applied to .board-wrapper by JS when health is low */

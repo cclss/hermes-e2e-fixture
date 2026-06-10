@@ -1,5 +1,5 @@
 /* =============================================================
-   TETRIS BATTLE — app.js  (grain-2: complete engine)
+   TETRIS BATTLE — app.js  (grain-3: AI Opponent, Difficulty System & Battle Mechanics)
    Brawl Stars-inspired 1v1 AI Tetris — Vanilla JS, no deps
    ============================================================= */
 
@@ -11,8 +11,8 @@
 const bus = (() => {
   const listeners = {};
   return {
-    on(event, fn)  { (listeners[event] = listeners[event] || []).push(fn); },
-    off(event, fn) { if (listeners[event]) listeners[event] = listeners[event].filter(f => f !== fn); },
+    on(event, fn)     { (listeners[event] = listeners[event] || []).push(fn); },
+    off(event, fn)    { if (listeners[event]) listeners[event] = listeners[event].filter(f => f !== fn); },
     emit(event, data) { (listeners[event] || []).forEach(fn => fn(data)); },
   };
 })();
@@ -40,27 +40,105 @@ const PIECE_KEYS = Object.keys(TETROMINOES);
 
 // Standard Tetris guideline scoring
 const SCORE_TABLE = { 1: 100, 2: 300, 3: 500, 4: 800 };
-const COMBO_BONUS = 50;   // per combo level
-const B2B_BONUS   = 1.5;  // back-to-back multiplier
+const COMBO_BONUS = 50;
+const B2B_BONUS   = 1.5;
 
 // Garbage lines sent per clear (standard VS table)
-const GARBAGE_TABLE = { 1: 0, 2: 1, 3: 2, 4: 4 };
-const COMBO_GARBAGE = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5]; // combo 0..11+
+const GARBAGE_TABLE  = { 1: 0, 2: 1, 3: 2, 4: 4 };
+const COMBO_GARBAGE  = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5];
 
+// ── AI Difficulty Tiers ─────────────────────────────────────
+// Rookie: slow + clumsy  |  Rival: moderate  |  Demon: near-perfect + T-spin
 const AI_DIFFICULTY = {
-  1: { thinkDelayMs: 900,  mistakeRate: 0.30, depthScore: 1 },
-  2: { thinkDelayMs: 420,  mistakeRate: 0.08, depthScore: 2 },
-  3: { thinkDelayMs: 120,  mistakeRate: 0.01, depthScore: 4 },
+  1: {
+    name:         'ROOKIE',
+    thinkDelayMs: 750,    // slow decision making
+    mistakeRate:  0.35,   // 35% chance of random bad move
+    weightNoise:  0.30,   // ±30% variation in heuristic weights
+    tspinPref:    0.0,    // no T-spin seeking
+  },
+  2: {
+    name:         'RIVAL',
+    thinkDelayMs: 360,
+    mistakeRate:  0.09,
+    weightNoise:  0.11,
+    tspinPref:    0.8,    // mild T-spin preference
+  },
+  3: {
+    name:         'DEMON',
+    thinkDelayMs: 90,     // near-instant
+    mistakeRate:  0.01,   // nearly flawless
+    weightNoise:  0.02,   // barely noisy
+    tspinPref:    2.5,    // actively seeks T-spin setups
+  },
 };
 
-const TBAG_PHRASES = [
-  'GG EZ 😈', 'TOO SLOW 🐢', 'L RATIO 💀', 'SKILL ISSUE 👁️',
-  'BOZO 🤡',   'STAY MAD 😤', 'EZ CLAP 👏', 'IMAGINE LOSING 💅',
-  'TOUCH GRASS 🌿', 'NEXT TIME... MAYBE 😏', 'GET REKT 🎮', 'YIKES 😬',
-];
+// Dellacherie-style base heuristic weights
+const BASE_W = {
+  aggHeight:    0.510,
+  holes:        3.500,
+  bumpiness:    0.184,
+  linesCleared: 3.500,
+};
 
-// SRS Wall-kick data  [from_rotation -> to_rotation] -> [[dx,dy], ...]
-// Standard J/L/S/T/Z kicks
+// ── T-bag Phrases — ≥8 total across 4 trigger types ─────────
+const TBAG_PHRASES = {
+  tetris: [
+    '4-LINE! POGGERS 💥',
+    'TETRIS! EZ CLAP 👏',
+    'CLEAN SWEEP 🧹',
+    'FULL SEND 😈',
+    'PERFECT CLEAR? ALMOST 💅',
+  ],
+  escape: [
+    'THOUGHT I WAS DONE? 👻',
+    'I LIVE! 🔥',
+    'NOT TODAY 😎',
+    'COMEBACK KID 🤣',
+    'CAN\'T STOP ME 💪',
+  ],
+  topout: [
+    'L RATIO 💀',
+    'STAY MAD 😤',
+    'SKILL ISSUE 👁️',
+    'BOZO 🤡',
+    'GG NO RE 😈',
+  ],
+  combo: [
+    'GG EZ 😈',
+    'TOO SLOW 🐢',
+    'IMAGINE LOSING 💅',
+    'TOUCH GRASS 🌿',
+    'NEXT TIME... 😏',
+    'GET REKT 🎮',
+    'YIKES 😬',
+    'EZ GAME EZ LIFE 🎯',
+  ],
+};
+
+// ── Penalty Flavor — Garbage Row Colors ──────────────────────
+// Each flavor produces visually distinct injected rows
+const GARBAGE_COLORS = {
+  classic: '#636375',  // solid slate-gray — one gap
+  cheese:  '#7A5930',  // dirty brown — Swiss-cheese holes
+  messy:   '#2B6B45',  // forest green — drifting gap
+  mirror:  '#2B4D8A',  // navy blue — reflected gap
+  surge:   '#7A2438',  // dark crimson — rapid burst
+};
+
+// ── Particle Colors per Flavor ───────────────────────────────
+const PARTICLE_COLORS = {
+  classic: '#9898AA',
+  cheese:  '#CC9955',
+  messy:   '#44CC88',
+  mirror:  '#4488FF',
+  surge:   '#FF2244',
+};
+
+// Penalty delivery delay (ms) — payload sits in queue this long
+const PENALTY_DELAY_MS = 1500;
+
+// SRS Wall-kick data
 const KICKS_JLSTZ = {
   '0->1': [[ 0,0],[-1,0],[-1, 1],[0,-2],[-1,-2]],
   '1->0': [[ 0,0],[ 1,0],[ 1,-1],[0, 2],[ 1, 2]],
@@ -71,7 +149,6 @@ const KICKS_JLSTZ = {
   '3->0': [[ 0,0],[-1,0],[-1,-1],[0, 2],[-1, 2]],
   '0->3': [[ 0,0],[ 1,0],[ 1, 1],[0,-2],[ 1,-2]],
 };
-// I-piece kicks
 const KICKS_I = {
   '0->1': [[ 0,0],[-2,0],[ 1,0],[-2,-1],[ 1, 2]],
   '1->0': [[ 0,0],[ 2,0],[-1,0],[ 2, 1],[-1,-2]],
@@ -161,14 +238,14 @@ const DOM = {
 };
 
 const CTX = {
-  bg:      DOM.bgCanvas.getContext('2d'),
+  bg:       DOM.bgCanvas.getContext('2d'),
   particle: DOM.particleCanvas.getContext('2d'),
-  player:  DOM.playerBoard.getContext('2d'),
-  ai:      DOM.aiBoard.getContext('2d'),
-  pHold:   DOM.playerHold.getContext('2d'),
-  pNext:   DOM.playerNext.getContext('2d'),
-  aHold:   DOM.aiHold.getContext('2d'),
-  aNext:   DOM.aiNext.getContext('2d'),
+  player:   DOM.playerBoard.getContext('2d'),
+  ai:       DOM.aiBoard.getContext('2d'),
+  pHold:    DOM.playerHold.getContext('2d'),
+  pNext:    DOM.playerNext.getContext('2d'),
+  aHold:    DOM.aiHold.getContext('2d'),
+  aNext:    DOM.aiNext.getContext('2d'),
 };
 
 
@@ -183,7 +260,7 @@ function createBoard() {
 function createPlayerState() {
   return {
     board:        createBoard(),
-    current:      null,   // { type, shape, rotState, x, y, color, colorDark, colorLight }
+    current:      null,
     held:         null,
     holdUsed:     false,
     bag:          [],
@@ -191,33 +268,33 @@ function createPlayerState() {
     score:        0,
     level:        1,
     lines:        0,
-    combo:        -1,     // -1 = no streak yet; 0 = first clear
+    combo:        -1,
     maxCombo:     0,
     backToBack:   false,
     health:       100,
     pendingGarbage: 0,
-    activeFx:     null,   // 'mirror' | 'gravity' | 'blind' | null
+    activeFx:     null,
     fxTimer:      0,
     isAlive:      true,
-    gravityAcc:   0,      // accumulated gravity ms
-    lockDelay:    0,      // lock-delay accumulator ms
-    lockDelayMax: 500,    // ms of no movement before auto-lock
+    gravityAcc:   0,
+    lockDelay:    0,
+    lockDelayMax: 500,
     onGround:     false,
-    startTime:    0,      // set when game starts
+    startTime:    0,
   };
 }
 
 let STATE = {
-  phase:       'start',
-  player:      createPlayerState(),
-  ai:          createPlayerState(),
-  difficulty:  2,
-  penaltyType: 'garbage',
-  tick:        0,
-  lastTime:    0,
-  winner:      null,
-  bgStars:     [],
-  bgFloaters:  [],
+  phase:        'start',
+  player:       createPlayerState(),
+  ai:           createPlayerState(),
+  difficulty:   2,
+  penaltyType:  'classic',   // active penalty flavor (captured at queue time)
+  tick:         0,
+  lastTime:     0,
+  winner:       null,
+  bgStars:      [],
+  bgFloaters:   [],
   gameStartTime: 0,
 };
 
@@ -238,7 +315,6 @@ function refillBag(ps) {
   if (ps.bag.length === 0) {
     ps.bag = shuffle([...PIECE_KEYS]);
   }
-  // Keep nextQueue stocked to 3
   while (ps.nextQueue.length < 3 && ps.bag.length > 0) {
     ps.nextQueue.push(ps.bag.shift());
     if (ps.bag.length === 0) ps.bag = shuffle([...PIECE_KEYS]);
@@ -247,7 +323,6 @@ function refillBag(ps) {
 
 function makeCurrentPiece(type) {
   const def = TETROMINOES[type];
-  // Deep clone shape
   const shape = def.shape.map(r => [...r]);
   const spawnX = Math.floor((COLS - shape[0].length) / 2);
   const spawnY = type === 'I' ? -1 : 0;
@@ -327,13 +402,13 @@ function tryRotate(ps, dir) {
 
   for (const [dx, dy] of kicks) {
     const nx = cur.x + dx;
-    const ny = cur.y - dy; // SRS uses y-up internally, invert for canvas y-down
+    const ny = cur.y - dy;
     if (!collides(ps.board, newShape, nx, ny)) {
       cur.shape    = newShape;
       cur.rotState = newRot;
       cur.x = nx;
       cur.y = ny;
-      ps.lockDelay = 0; // reset lock delay on successful rotation
+      ps.lockDelay = 0;
       return true;
     }
   }
@@ -347,7 +422,6 @@ function tryRotate(ps, dir) {
 
 function moveHorizontal(ps, dir) {
   if (!ps.current || !ps.isAlive) return false;
-  // Mirror effect inverts left/right
   const actualDir = ps.activeFx === 'mirror' ? -dir : dir;
   if (!collides(ps.board, ps.current.shape, ps.current.x + actualDir, ps.current.y)) {
     ps.current.x += actualDir;
@@ -358,7 +432,6 @@ function moveHorizontal(ps, dir) {
 }
 
 function moveHorizontalRaw(ps, dir) {
-  // unaffected by mirror (for AI)
   if (!ps.current || !ps.isAlive) return false;
   if (!collides(ps.board, ps.current.shape, ps.current.x + dir, ps.current.y)) {
     ps.current.x += dir;
@@ -397,13 +470,12 @@ function hardDrop(ps, targetPs) {
 
 
 // ──────────────────────────────────────────────────────────────
-// T-SPIN DETECTION
+// T-SPIN DETECTION  (3-corner rule)
 // ──────────────────────────────────────────────────────────────
 
 function detectTSpin(ps) {
   if (!ps.current || ps.current.type !== 'T') return false;
-  const { x, y, rotState } = ps.current;
-  // 3-corner rule: at least 3 of the 4 diagonal corners must be occupied
+  const { x, y } = ps.current;
   const corners = [
     [y,     x    ],
     [y,     x + 2],
@@ -441,21 +513,15 @@ function lockPiece(ps, targetPs) {
   const isTSpin = detectTSpin(ps);
   stampPiece(ps);
 
-  // Find & clear full rows
   const clearedRows = [];
   for (let r = ROWS - 1; r >= 0; r--) {
-    if (ps.board[r].every(c => c !== 0)) {
-      clearedRows.push(r);
-    }
+    if (ps.board[r].every(c => c !== 0)) clearedRows.push(r);
   }
 
-  // Emit line-clear hook (grain-4 VFX subscribes here)
   if (clearedRows.length > 0) {
     bus.emit('lineClear', { side: ps === STATE.player ? 'player' : 'ai', rows: clearedRows });
   }
 
-  // Remove cleared rows (already in descending order) then prepend empty rows
-  // Process descending so lower splices don't shift higher indices
   clearedRows.sort((a, b) => b - a);
   for (const r of clearedRows) ps.board.splice(r, 1);
   for (let i = 0; i < clearedRows.length; i++) ps.board.unshift(new Array(COLS).fill(0));
@@ -464,48 +530,38 @@ function lockPiece(ps, targetPs) {
   const side = ps === STATE.player ? 'player' : 'ai';
 
   if (n > 0) {
-    // Combo tracking
     ps.combo++;
     if (ps.combo > ps.maxCombo) ps.maxCombo = ps.combo;
 
-    // Back-to-back (consecutive Tetris or T-spin)
     const isSpecial = n === 4 || isTSpin;
-    const b2bMulti = (isSpecial && ps.backToBack) ? B2B_BONUS : 1.0;
-    ps.backToBack = isSpecial;
+    const b2bMulti  = (isSpecial && ps.backToBack) ? B2B_BONUS : 1.0;
+    ps.backToBack   = isSpecial;
 
-    // Score
-    const base = SCORE_TABLE[n] || 0;
+    const base       = SCORE_TABLE[n] || 0;
     const comboBonus = ps.combo * COMBO_BONUS;
     ps.score += Math.floor((base + comboBonus) * ps.level * b2bMulti);
     ps.lines += n;
 
-    // Level up every 10 lines
     const newLevel = Math.floor(ps.lines / 10) + 1;
     if (newLevel > ps.level) {
       ps.level = newLevel;
       bus.emit('levelUp', { side, level: newLevel });
     }
 
-    // UI
     updateStatsUI(side);
     if (ps.combo >= 1) showComboToast(side, ps.combo);
 
-    // Flash board
     flashBoard(side);
     thudBoard(side);
 
-    // Penalty
     if (targetPs) {
       const garbageCount = calcGarbageSent(n, ps.combo, isTSpin, b2bMulti > 1);
-      if (garbageCount > 0) {
-        queuePenaltyAttack(side, garbageCount);
-      }
+      if (garbageCount > 0) queuePenaltyAttack(side, garbageCount);
     }
 
     bus.emit('combo', { side, combo: ps.combo, lines: n });
   } else {
-    // Zero-clear resets combo
-    ps.combo = -1;
+    ps.combo      = -1;
     ps.backToBack = false;
     thudBoard(side);
   }
@@ -521,23 +577,89 @@ function lockPiece(ps, targetPs) {
 
 function calcGarbageSent(lines, combo, isTSpin, isB2B) {
   let base = GARBAGE_TABLE[lines] || 0;
-  if (isTSpin) base = Math.max(base, lines * 2);
-  if (isB2B) base += 1;
+  if (isTSpin) base = Math.max(base, lines * 2);  // T-spin double → 4
+  if (isB2B)   base += 1;
   const comboGarbage = COMBO_GARBAGE[Math.min(combo, COMBO_GARBAGE.length - 1)] || 0;
   return base + comboGarbage;
 }
 
-function addGarbageLines(ps, count) {
-  if (count <= 0) return;
+
+// ──────────────────────────────────────────────────────────────
+// PENALTY FLAVOR — GARBAGE LINE GENERATORS
+// Each function adds `count` rows with a distinct visual identity
+// ──────────────────────────────────────────────────────────────
+
+// Classic: single fixed gap column, solid slate-gray
+function addGarbageLinesClassic(ps, count) {
   const hole = Math.floor(Math.random() * COLS);
+  const col  = GARBAGE_COLORS.classic;
   for (let i = 0; i < count; i++) {
     ps.board.shift();
-    const row = new Array(COLS).fill('#555566');
+    const row = new Array(COLS).fill(col);
     row[hole] = 0;
     ps.board.push(row);
   }
-  shakeBoard(ps === STATE.player ? 'player' : 'ai');
-  bus.emit('garbageReceived', { side: ps === STATE.player ? 'player' : 'ai', count });
+}
+
+// Cheese: 2–3 random holes per row, dirty brown
+function addGarbageLinesCheese(ps, count) {
+  const col = GARBAGE_COLORS.cheese;
+  for (let i = 0; i < count; i++) {
+    ps.board.shift();
+    const row = new Array(COLS).fill(col);
+    const gapCount = 2 + Math.floor(Math.random() * 2); // 2 or 3 gaps
+    const positions = shuffle([...Array(COLS).keys()]).slice(0, gapCount);
+    positions.forEach(p => { row[p] = 0; });
+    ps.board.push(row);
+  }
+}
+
+// Messy: gap drifts ±1 per row, forest green
+function addGarbageLinesMessy(ps, count) {
+  let hole = Math.floor(Math.random() * COLS);
+  const col = GARBAGE_COLORS.messy;
+  for (let i = 0; i < count; i++) {
+    ps.board.shift();
+    const row = new Array(COLS).fill(col);
+    row[hole] = 0;
+    ps.board.push(row);
+    // Drift gap randomly by -1, 0, or +1
+    const drift = Math.floor(Math.random() * 3) - 1;
+    hole = Math.max(0, Math.min(COLS - 1, hole + drift));
+  }
+}
+
+// Mirror: gap column = mirrored position of player's piece (reflected across center)
+function addGarbageLinesMirror(ps, count, playerCol) {
+  const hole = Math.max(0, Math.min(COLS - 1, (COLS - 1) - playerCol));
+  const col  = GARBAGE_COLORS.mirror;
+  for (let i = 0; i < count; i++) {
+    ps.board.shift();
+    const row = new Array(COLS).fill(col);
+    row[hole] = 0;
+    ps.board.push(row);
+  }
+}
+
+// Surge: lines arrive in rapid bursts (90ms apart) after a brief wind-up
+// Visual: dark crimson, each line with a random gap
+function addGarbageLinesSurge(ps, count, toSide) {
+  let delivered = 0;
+  function burstNext() {
+    if (delivered >= count || !ps.isAlive || STATE.phase !== 'playing') return;
+    ps.board.shift();
+    const row = new Array(COLS).fill(GARBAGE_COLORS.surge);
+    row[Math.floor(Math.random() * COLS)] = 0;
+    ps.board.push(row);
+    delivered++;
+    if (delivered < count) {
+      setTimeout(burstNext, 90);
+    } else {
+      shakeBoard(toSide);
+      flashBoard(toSide);
+    }
+  }
+  burstNext();
 }
 
 
@@ -557,7 +679,7 @@ function holdPiece(ps) {
   }
   ps.held = currentType;
   ps.gravityAcc = 0;
-  ps.lockDelay = 0;
+  ps.lockDelay  = 0;
 }
 
 
@@ -566,7 +688,6 @@ function holdPiece(ps) {
 // ──────────────────────────────────────────────────────────────
 
 function gravityIntervalForLevel(level) {
-  // Tetris Guideline formula
   return Math.max(50, Math.floor(1000 * Math.pow(0.8 - (level - 1) * 0.007, level - 1)));
 }
 
@@ -577,7 +698,6 @@ function gravityIntervalForLevel(level) {
 
 function applyDamage(ps, amount) {
   ps.health = Math.max(0, ps.health - amount);
-  if (ps.health <= 0) ps.isAlive = false;
 }
 
 function updateHealthBar(side) {
@@ -586,8 +706,13 @@ function updateHealthBar(side) {
   fill.style.width = ps.health + '%';
   if (ps.health <= 25) {
     fill.style.animation = 'health-danger 0.6s ease-in-out infinite';
+    // Danger border on board
+    const wrapper = side === 'player' ? DOM.playerBoardWrapper : DOM.aiBoardWrapper;
+    wrapper.classList.add('is-danger');
   } else {
     fill.style.animation = '';
+    const wrapper = side === 'player' ? DOM.playerBoardWrapper : DOM.aiBoardWrapper;
+    wrapper.classList.remove('is-danger');
   }
 }
 
@@ -624,7 +749,7 @@ function drawCell(ctx, x, y, color, size, alpha = 1.0, isGhost = false) {
   ctx.fillRect(x + 2, y + size - 5, size - 4, 3);
   ctx.fillRect(x + size - 5, y + 2, 3, size - 4);
 
-  // Inner glow overlay (top-left corner gleam)
+  // Inner glow overlay
   const grad = ctx.createLinearGradient(x, y, x + size * 0.6, y + size * 0.6);
   grad.addColorStop(0, 'rgba(255,255,255,0.18)');
   grad.addColorStop(1, 'rgba(255,255,255,0)');
@@ -634,14 +759,41 @@ function drawCell(ctx, x, y, color, size, alpha = 1.0, isGhost = false) {
   ctx.globalAlpha = 1.0;
 }
 
+// Draws a garbage row with a subtle striped/grungy overlay
+function drawGarbageCell(ctx, x, y, color, size) {
+  ctx.globalAlpha = 1.0;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size - 1, size - 1);
+
+  // Diagonal hash lines for "dirty" look
+  ctx.strokeStyle = 'rgba(0,0,0,0.30)';
+  ctx.lineWidth = 1;
+  for (let d = 0; d < size * 2; d += 5) {
+    ctx.beginPath();
+    ctx.moveTo(x + Math.max(0, d - size + 1), y + Math.min(size - 1, d));
+    ctx.lineTo(x + Math.min(size - 1, d), y + Math.max(0, d - size + 1));
+    ctx.stroke();
+  }
+
+  // Thin top shine
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x + 1, y + 1, size - 3, 3);
+}
+
+const GARBAGE_COLOR_SET = new Set(Object.values(GARBAGE_COLORS));
+
 function renderBoard(ctx, ps) {
   ctx.clearRect(0, 0, COLS * CELL, ROWS * CELL);
 
-  // Draw locked board cells
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      if (ps.board[r][c]) {
-        drawCell(ctx, c * CELL, r * CELL, ps.board[r][c], CELL);
+      const cell = ps.board[r][c];
+      if (!cell) continue;
+      // Render garbage rows differently
+      if (GARBAGE_COLOR_SET.has(cell)) {
+        drawGarbageCell(ctx, c * CELL, r * CELL, cell, CELL);
+      } else {
+        drawCell(ctx, c * CELL, r * CELL, cell, CELL);
       }
     }
   }
@@ -689,17 +841,16 @@ function renderMiniPiece(ctx, type, canvasW, canvasH) {
 
 
 // ──────────────────────────────────────────────────────────────
-// BACKGROUND STARS
+// BACKGROUND STARS / FLOATERS
 // ──────────────────────────────────────────────────────────────
 
 function initBgStars() {
   DOM.bgCanvas.width  = window.innerWidth;
   DOM.bgCanvas.height = window.innerHeight;
-  STATE.bgStars = [];
+  STATE.bgStars    = [];
   STATE.bgFloaters = [];
   const w = DOM.bgCanvas.width, h = DOM.bgCanvas.height;
 
-  // Small twinkling stars
   for (let i = 0; i < 140; i++) {
     STATE.bgStars.push({
       x: Math.random() * w,
@@ -713,7 +864,6 @@ function initBgStars() {
     });
   }
 
-  // Larger soft glow blobs
   for (let i = 0; i < 6; i++) {
     STATE.bgFloaters.push({
       x: Math.random() * w,
@@ -731,7 +881,6 @@ function animateBgStars(timestamp) {
   const w = DOM.bgCanvas.width, h = DOM.bgCanvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  // Floaters
   for (const f of STATE.bgFloaters) {
     f.x += Math.cos(f.dir) * f.speed;
     f.y += Math.sin(f.dir) * f.speed;
@@ -748,7 +897,6 @@ function animateBgStars(timestamp) {
     ctx.fill();
   }
 
-  // Stars
   for (const s of STATE.bgStars) {
     s.twinklePhase += s.twinkleSpeed;
     s.y += s.speed;
@@ -765,29 +913,20 @@ function animateBgStars(timestamp) {
 
 
 // ──────────────────────────────────────────────────────────────
-// PENALTY PARTICLES
+// PENALTY PARTICLES — gather → launch animation
 // ──────────────────────────────────────────────────────────────
 
-const PARTICLE_COLORS = {
-  garbage: '#888899',
-  mirror:  '#5B9BF5',
-  gravity: '#FF7027',
-  blind:   '#9B4FE8',
-};
-
-function spawnPenaltyParticles(fromSide, lineCount, type) {
-  const color = PARTICLE_COLORS[type] || '#888899';
-  const count = Math.min(lineCount * 3, 12);
+function spawnPenaltyParticles(fromSide, lineCount, flavor) {
+  const color = PARTICLE_COLORS[flavor] || '#888899';
+  const count = Math.min(lineCount * 4, 16);
 
   const fromWrapper = fromSide === 'player' ? DOM.playerBoardWrapper : DOM.aiBoardWrapper;
   const toWrapper   = fromSide === 'player' ? DOM.aiBoardWrapper     : DOM.playerBoardWrapper;
 
   const fromRect = fromWrapper.getBoundingClientRect();
   const toRect   = toWrapper.getBoundingClientRect();
-
-  // Gather point: above the VS bolt
   const boltRect = DOM.transferBolt.getBoundingClientRect();
-  const gatherX  = boltRect.left + boltRect.width / 2;
+  const gatherX  = boltRect.left + boltRect.width  / 2;
   const gatherY  = boltRect.top  + boltRect.height / 2;
 
   for (let i = 0; i < count; i++) {
@@ -795,20 +934,22 @@ function spawnPenaltyParticles(fromSide, lineCount, type) {
     const startY = fromRect.top  + Math.random() * fromRect.height;
 
     const px = document.createElement('div');
-    px.className = 'penalty-particle';
+    px.className = `penalty-particle penalty-particle--${flavor}`;
     px.style.cssText = `
       left: ${startX}px;
       top:  ${startY}px;
       background: ${color};
       --tx: ${gatherX - startX}px;
       --ty: ${gatherY - startY}px;
-      --rot: ${(Math.random() * 360)}deg;
+      --rot: ${Math.random() * 360}deg;
     `;
     document.body.appendChild(px);
     px.classList.add('phase-gather');
 
-    // After gather animation ends, launch to target
-    const delay = (800 + Math.random() * 200);
+    // Wind-up time: longer for Surge
+    const gatherMs = flavor === 'surge' ? 1050 : 850;
+    const launchDelay = gatherMs + Math.random() * 150;
+
     setTimeout(() => {
       if (!document.body.contains(px)) return;
       const landX = toRect.left + Math.random() * toRect.width;
@@ -820,23 +961,22 @@ function spawnPenaltyParticles(fromSide, lineCount, type) {
       px.classList.remove('phase-gather');
       px.classList.add('phase-launch');
       px.addEventListener('animationend', () => px.remove(), { once: true });
-    }, delay);
+    }, launchDelay);
 
-    // Safety cleanup
-    setTimeout(() => { if (document.body.contains(px)) px.remove(); }, delay + 900);
+    setTimeout(() => { if (document.body.contains(px)) px.remove(); }, launchDelay + 800);
   }
 
   // Flash bolt
   DOM.transferBolt.classList.add('is-sending');
-  setTimeout(() => DOM.transferBolt.classList.remove('is-sending'), 600);
+  setTimeout(() => DOM.transferBolt.classList.remove('is-sending'), 500);
 }
 
-function updateAttackQueueViz(side, count, type) {
+function updateAttackQueueViz(side, count, flavor) {
   const el = side === 'player' ? DOM.playerAttackViz : DOM.aiAttackViz;
   el.innerHTML = '';
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < Math.min(count, 12); i++) {
     const b = document.createElement('div');
-    b.className = `atk-block atk-block--${type}`;
+    b.className = `atk-block atk-block--${flavor}`;
     el.appendChild(b);
   }
 }
@@ -846,56 +986,70 @@ function clearAttackQueueViz(side) {
   el.innerHTML = '';
 }
 
-function queuePenaltyAttack(fromSide, lineCount) {
-  const type = STATE.penaltyType;
-  updateAttackQueueViz(fromSide, lineCount, type);
-  spawnPenaltyParticles(fromSide, lineCount, type);
 
-  // Show incoming warning on opponent
+// ──────────────────────────────────────────────────────────────
+// PENALTY SYSTEM — Payload Queue
+// Flavor is captured at queue time; switching mid-game only affects
+// the *next* queued payload, never retroactively changes a queued one.
+// ──────────────────────────────────────────────────────────────
+
+function queuePenaltyAttack(fromSide, lineCount) {
+  const flavor = STATE.penaltyType;  // capture flavor NOW (not at delivery)
   const toSide = fromSide === 'player' ? 'ai' : 'player';
+
+  // Visual feedback
+  updateAttackQueueViz(fromSide, lineCount, flavor);
+  spawnPenaltyParticles(fromSide, lineCount, flavor);
+
+  // Incoming warning on opponent's side
   const incomingEl    = toSide === 'player' ? DOM.playerIncoming    : DOM.aiIncoming;
   const incomingCount = toSide === 'player' ? DOM.playerIncomingCount : DOM.aiIncomingCount;
   incomingCount.textContent = lineCount;
   incomingEl.classList.add('is-visible');
 
-  const GATHER_DELAY = 1100;
+  bus.emit('penalty:queued', { fromSide, toSide, count: lineCount, flavor, delayMs: PENALTY_DELAY_MS });
+
+  // Surge: show wind-up warning animation on target board
+  if (flavor === 'surge') {
+    const targetWrapper = toSide === 'player' ? DOM.playerBoardWrapper : DOM.aiBoardWrapper;
+    setTimeout(() => {
+      targetWrapper.classList.add('is-surge-incoming');
+      targetWrapper.addEventListener('animationend', () =>
+        targetWrapper.classList.remove('is-surge-incoming'), { once: true });
+    }, 700);
+  }
+
+  // Delayed delivery (1.5 s configurable)
   setTimeout(() => {
-    deliverPenalty(toSide, lineCount);
+    if (STATE.phase !== 'playing') return;
+    deliverPenalty(toSide, lineCount, flavor);
     clearAttackQueueViz(fromSide);
     incomingEl.classList.remove('is-visible');
-  }, GATHER_DELAY);
+  }, PENALTY_DELAY_MS);
 }
 
-function deliverPenalty(toSide, lineCount) {
+function deliverPenalty(toSide, lineCount, flavor) {
   const ps = toSide === 'player' ? STATE.player : STATE.ai;
   if (!ps.isAlive || STATE.phase !== 'playing') return;
 
-  const type = STATE.penaltyType;
-  switch (type) {
-    case 'garbage':
-      addGarbageLines(ps, lineCount);
-      break;
-    case 'mirror':
-      ps.activeFx = 'mirror';
-      ps.fxTimer  = 8000;
-      applyFxOverlay(toSide, 'mirror');
-      break;
-    case 'gravity':
-      ps.activeFx = 'gravity';
-      ps.fxTimer  = 6000;
-      applyFxOverlay(toSide, 'gravity');
-      break;
-    case 'blind':
-      ps.activeFx = 'blind';
-      ps.fxTimer  = 5000;
-      applyFxOverlay(toSide, 'blind');
-      break;
+  // Determine mirror column from player's current piece
+  const playerCol = STATE.player.current
+    ? STATE.player.current.x + Math.floor(STATE.player.current.shape[0].length / 2)
+    : 4;
+
+  switch (flavor) {
+    case 'classic': addGarbageLinesClassic(ps, lineCount); shakeBoard(toSide); break;
+    case 'cheese':  addGarbageLinesCheese(ps, lineCount);  shakeBoard(toSide); break;
+    case 'messy':   addGarbageLinesMessy(ps, lineCount);   shakeBoard(toSide); break;
+    case 'mirror':  addGarbageLinesMirror(ps, lineCount, playerCol); shakeBoard(toSide); break;
+    case 'surge':   addGarbageLinesSurge(ps, lineCount, toSide); break; // shakes internally
+    default:        addGarbageLinesClassic(ps, lineCount); shakeBoard(toSide);
   }
-  shakeBoard(toSide);
-  // Always add at least some garbage for non-garbage modes too (1 line)
-  if (type !== 'garbage' && lineCount >= 2) {
-    addGarbageLines(ps, 1);
-  }
+
+  // Health damage scales with line count
+  applyDamage(ps, lineCount * 7);
+  updateHealthBar(toSide);
+  bus.emit('garbageReceived', { side: toSide, count: lineCount, flavor });
 }
 
 function applyFxOverlay(side, fx) {
@@ -921,7 +1075,6 @@ function updateStatsUI(side) {
   linesEl.textContent = ps.lines;
   comboEl.textContent = Math.max(0, ps.combo);
 
-  // Score pop animation
   scoreEl.classList.remove('is-popping');
   void scoreEl.offsetWidth;
   scoreEl.classList.add('is-popping');
@@ -933,30 +1086,25 @@ function updateStatsUI(side) {
 let _comboHideTimers = { player: null, ai: null };
 
 function showComboToast(side, count) {
-  const toast = side === 'player' ? DOM.playerComboToast : DOM.aiComboToast;
+  const toast   = side === 'player' ? DOM.playerComboToast     : DOM.aiComboToast;
   const countEl = side === 'player' ? DOM.playerComboToastCount : DOM.aiComboToastCount;
   countEl.textContent = count;
   toast.dataset.hidden = 'false';
   if (_comboHideTimers[side]) clearTimeout(_comboHideTimers[side]);
-  _comboHideTimers[side] = setTimeout(() => hideComboToast(side), 1500);
-}
-
-function hideComboToast(side) {
-  const toast = side === 'player' ? DOM.playerComboToast : DOM.aiComboToast;
-  toast.dataset.hidden = 'true';
-  // Force re-animation next time by resetting
-  toast.style.animation = 'none';
-  void toast.offsetWidth;
-  toast.style.animation = '';
+  _comboHideTimers[side] = setTimeout(() => {
+    toast.dataset.hidden = 'true';
+    toast.style.animation = 'none';
+    void toast.offsetWidth;
+    toast.style.animation = '';
+  }, 1500);
 }
 
 let _tbagTimer    = null;
 let _tbagCooldown = false;
 
-function showTbag() {
+function showTbag(phrase) {
   if (_tbagCooldown) return;
   _tbagCooldown = true;
-  const phrase = TBAG_PHRASES[Math.floor(Math.random() * TBAG_PHRASES.length)];
   DOM.tbagText.textContent = phrase;
   DOM.tbagBubble.dataset.hidden = 'false';
   if (_tbagTimer) clearTimeout(_tbagTimer);
@@ -965,8 +1113,13 @@ function showTbag() {
     DOM.tbagBubble.style.animation = 'none';
     void DOM.tbagBubble.offsetWidth;
     DOM.tbagBubble.style.animation = '';
-    setTimeout(() => { _tbagCooldown = false; }, 1500);
-  }, 2200);
+    setTimeout(() => { _tbagCooldown = false; }, 1200);
+  }, 2500);
+}
+
+function pickPhrase(trigger) {
+  const list = TBAG_PHRASES[trigger] || TBAG_PHRASES.combo;
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 function setBattleStatus(text) {
@@ -1023,11 +1176,7 @@ function runCountdown(onDone) {
   showScreen('countdown');
 
   function tick() {
-    if (i >= steps.length) {
-      showGame();
-      onDone();
-      return;
-    }
+    if (i >= steps.length) { showGame(); onDone(); return; }
     DOM.countdownNumber.textContent = steps[i];
     DOM.countdownNumber.style.animation = 'none';
     void DOM.countdownNumber.offsetWidth;
@@ -1051,7 +1200,7 @@ function gameLoop(timestamp) {
     return;
   }
 
-  const dt = Math.min(timestamp - STATE.lastTime, 50); // cap dt at 50ms
+  const dt = Math.min(timestamp - STATE.lastTime, 50);
   STATE.lastTime = timestamp;
   STATE.tick++;
 
@@ -1060,38 +1209,29 @@ function gameLoop(timestamp) {
 
   // ── Player gravity ──
   if (player.isAlive && player.current) {
-    const gravMs = player.activeFx === 'gravity'
-      ? Math.floor(gravityIntervalForLevel(player.level) * 0.35)
-      : gravityIntervalForLevel(player.level);
+    const gravMs = gravityIntervalForLevel(player.level);
 
     player.gravityAcc += dt;
     if (player.gravityAcc >= gravMs) {
       player.gravityAcc = 0;
       const moved = softDrop(player);
       if (!moved) {
-        // On ground — start lock delay
         player.onGround = true;
         player.lockDelay += dt + gravMs;
-        if (player.lockDelay >= player.lockDelayMax) {
-          lockPiece(player, ai);
-        }
+        if (player.lockDelay >= player.lockDelayMax) lockPiece(player, ai);
       } else {
         player.onGround = false;
         player.lockDelay = 0;
       }
     } else if (player.onGround) {
       player.lockDelay += dt;
-      if (player.lockDelay >= player.lockDelayMax) {
-        lockPiece(player, ai);
-      }
+      if (player.lockDelay >= player.lockDelayMax) lockPiece(player, ai);
     }
   }
 
   // ── AI gravity ──
   if (ai.isAlive && ai.current) {
-    const aiGravMs = ai.activeFx === 'gravity'
-      ? Math.floor(gravityIntervalForLevel(ai.level) * 0.35)
-      : gravityIntervalForLevel(ai.level);
+    const aiGravMs = gravityIntervalForLevel(ai.level);
 
     ai.gravityAcc += dt;
     if (ai.gravityAcc >= aiGravMs) {
@@ -1129,6 +1269,9 @@ function gameLoop(timestamp) {
     }
   }
 
+  // ── Near-death tracking for AI (used by T-bag escape trigger) ──
+  checkAiNearDeathStatus();
+
   // ── Render boards ──
   renderBoard(CTX.player, player);
   renderBoard(CTX.ai, ai);
@@ -1157,120 +1300,71 @@ function stopLoop() {
 
 
 // ──────────────────────────────────────────────────────────────
-// AI ENGINE
+// AI ENGINE — Grain-3 Rewrite
+// Weighted heuristic with configurable weight noise, T-spin
+// preference (Demon), and mid-game difficulty ramping.
 // ──────────────────────────────────────────────────────────────
 
 let _aiScheduled = false;
 
-function scheduleAiMove() {
-  if (_aiScheduled) return;
-  _aiScheduled = true;
-  const delay = AI_DIFFICULTY[STATE.difficulty].thinkDelayMs;
-  setTimeout(() => {
-    _aiScheduled = false;
-    if (STATE.phase === 'playing' && STATE.ai.isAlive && STATE.ai.current) {
-      aiThink();
-    }
-  }, delay);
+// Mid-game difficulty ramp: smoothly increases AI performance
+// as the player's score climbs, making the AI progressively faster / more accurate.
+function getEffectiveAiParams() {
+  const base  = STATE.difficulty;
+  const diff  = AI_DIFFICULTY[base];
+  const score = STATE.player.score;
+
+  // No ramp for max difficulty (already optimal)
+  if (base === 3) return diff;
+
+  // Ramp factor: 0 at score=0, 1.0 at score=8000
+  const t = Math.min(score / 8000, 1.0);
+
+  // Interpolate toward the next tier's values (up to 55% of the gap)
+  const next = AI_DIFFICULTY[Math.min(base + 1, 3)];
+  return {
+    ...diff,
+    thinkDelayMs: Math.round(diff.thinkDelayMs - (diff.thinkDelayMs - next.thinkDelayMs) * t * 0.55),
+    mistakeRate:  diff.mistakeRate  - (diff.mistakeRate  - next.mistakeRate)  * t * 0.50,
+    weightNoise:  diff.weightNoise  - (diff.weightNoise  - next.weightNoise)  * t * 0.40,
+  };
 }
 
-function aiThink() {
-  const ai = STATE.ai;
-  if (!ai.current || !ai.isAlive) return;
-
-  const diff = AI_DIFFICULTY[STATE.difficulty];
-  let bestScore = Infinity;
-  let bestX = ai.current.x;
-  let bestRot = 0;
-
-  // Try all rotations
-  let testShape = ai.current.shape.map(r => [...r]);
-  for (let rot = 0; rot < 4; rot++) {
-    // Try all column positions
-    for (let col = -2; col < COLS + 2; col++) {
-      if (collides(ai.board, testShape, col, 0)) continue;
-      // Drop to bottom
-      let dropY = 0;
-      while (!collides(ai.board, testShape, col, dropY + 1)) dropY++;
-      if (collides(ai.board, testShape, col, dropY)) continue;
-
-      // Simulate placement
-      const { board: simBoard, linesCleared } = simulatePlacement(
-        ai.board, testShape, ai.current.color, col, dropY
-      );
-      const score = evaluateBoard(simBoard) - linesCleared * 3.5;
-
-      if (score < bestScore) {
-        bestScore = score;
-        bestX = col;
-        bestRot = rot;
-      }
-    }
-    testShape = rotateShapeCW(testShape);
-  }
-
-  // Apply mistake based on difficulty
-  if (Math.random() < diff.mistakeRate) {
-    bestX   += Math.floor(Math.random() * 5) - 2;
-    bestRot  = Math.floor(Math.random() * 4);
-  }
-
-  // Execute: rotate first
-  const targetRot = bestRot;
-  let rotsDone = 0;
-  while (ai.current.rotState !== targetRot && rotsDone < 4) {
-    tryRotate(ai, 1);
-    rotsDone++;
-  }
-
-  // Move horizontally
-  const dx = bestX - ai.current.x;
-  const steps = Math.abs(dx);
-  const dir   = dx > 0 ? 1 : -1;
-  for (let i = 0; i < steps; i++) {
-    moveHorizontalRaw(ai, dir);
-  }
-
-  // Hard drop
-  hardDrop(ai, STATE.player);
-
-  // AI tbag
-  maybeTbag(ai.combo);
-
-  // Schedule next move
-  if (STATE.phase === 'playing' && ai.isAlive) {
-    scheduleAiMove();
-  }
+// Add Gaussian-ish noise to a weight value
+function noisyWeight(base, noiseLevel) {
+  return base * (1.0 + (Math.random() * 2 - 1) * noiseLevel);
 }
 
-function evaluateBoard(board) {
-  let aggregateHeight = 0;
-  let holes = 0;
-  let bumpiness = 0;
-  const colHeights = new Array(COLS).fill(0);
+// Evaluate a board state using noisy weighted heuristics
+function evaluateBoardWeighted(board, w) {
+  let aggHeight  = 0;
+  let holes      = 0;
+  let bumpiness  = 0;
+  const colH = new Array(COLS).fill(0);
 
   for (let c = 0; c < COLS; c++) {
-    let found = false;
+    let blockFound = false;
     for (let r = 0; r < ROWS; r++) {
-      if (board[r][c] && !found) {
-        colHeights[c] = ROWS - r;
-        found = true;
+      if (board[r][c] && !blockFound) {
+        colH[c]    = ROWS - r;
+        blockFound = true;
       }
-      if (found && !board[r][c]) holes++;
+      if (blockFound && !board[r][c]) holes++;
     }
-    aggregateHeight += colHeights[c];
+    aggHeight += colH[c];
   }
 
   for (let c = 0; c < COLS - 1; c++) {
-    bumpiness += Math.abs(colHeights[c] - colHeights[c + 1]);
+    bumpiness += Math.abs(colH[c] - colH[c + 1]);
   }
 
-  return aggregateHeight * 0.51 + holes * 3.5 + bumpiness * 0.18;
+  return aggHeight * w.aggH + holes * w.holes + bumpiness * w.bump;
 }
 
-function simulatePlacement(board, shape, color, px, py) {
-  // Deep clone board
+// Simulate piece placement on a cloned board, return evaluation data
+function simulatePlacement(board, shape, color, px, py, detectTSpinFlag) {
   const sim = board.map(r => [...r]);
+
   // Stamp piece
   for (let r = 0; r < shape.length; r++) {
     for (let c = 0; c < shape[r].length; c++) {
@@ -1279,34 +1373,196 @@ function simulatePlacement(board, shape, color, px, py) {
       if (br >= 0 && br < ROWS && bc >= 0 && bc < COLS) sim[br][bc] = color;
     }
   }
-  // Count & clear full rows
+
+  // Check T-spin (3-corner rule)
+  let isTSpin = false;
+  if (detectTSpinFlag) {
+    const corners = [[py, px], [py, px + 2], [py + 2, px], [py + 2, px + 2]];
+    let occ = 0;
+    for (const [r, c] of corners) {
+      if (c < 0 || c >= COLS || r < 0 || r >= ROWS || sim[r][c]) occ++;
+    }
+    isTSpin = occ >= 3;
+  }
+
+  // Clear full rows
   let linesCleared = 0;
-  for (let r = ROWS - 1; r >= 0; r--) {
+  for (let r = ROWS - 1; r >= 0; ) {
     if (sim[r].every(c => c !== 0)) {
       sim.splice(r, 1);
       sim.unshift(new Array(COLS).fill(0));
       linesCleared++;
+    } else {
+      r--;
     }
   }
-  return { board: sim, linesCleared };
+
+  return { board: sim, linesCleared, isTSpin };
+}
+
+function scheduleAiMove() {
+  if (_aiScheduled) return;
+  _aiScheduled = true;
+  const params = getEffectiveAiParams();
+  setTimeout(() => {
+    _aiScheduled = false;
+    if (STATE.phase === 'playing' && STATE.ai.isAlive && STATE.ai.current) {
+      aiThink(params);
+    }
+  }, params.thinkDelayMs);
+}
+
+function aiThink(params) {
+  const ai = STATE.ai;
+  if (!ai.current || !ai.isAlive) return;
+
+  // If no params passed (shouldn't happen), use fresh effective params
+  if (!params) params = getEffectiveAiParams();
+
+  // Build noisy weights for this placement decision
+  const w = {
+    aggH:  noisyWeight(BASE_W.aggHeight,    params.weightNoise),
+    holes: noisyWeight(BASE_W.holes,        params.weightNoise),
+    bump:  noisyWeight(BASE_W.bumpiness,    params.weightNoise),
+    lines: noisyWeight(BASE_W.linesCleared, params.weightNoise),
+  };
+
+  const isTpiece  = ai.current.type === 'T';
+  const tspinPref = params.tspinPref;
+
+  let bestScore  = Infinity;
+  let bestX      = ai.current.x;
+  let bestRot    = 0;
+
+  let testShape = ai.current.shape.map(r => [...r]);
+
+  for (let rot = 0; rot < 4; rot++) {
+    for (let col = -2; col < COLS + 2; col++) {
+      // Fast check: can piece exist at col, row 0?
+      if (collides(ai.board, testShape, col, 0)) continue;
+
+      // Drop to landing row
+      let dropY = 0;
+      while (!collides(ai.board, testShape, col, dropY + 1)) dropY++;
+      if (collides(ai.board, testShape, col, dropY)) continue;
+
+      const { board: simBoard, linesCleared, isTSpin } = simulatePlacement(
+        ai.board, testShape, ai.current.color, col, dropY, isTpiece
+      );
+
+      // Base board score (lower = better)
+      let score = evaluateBoardWeighted(simBoard, w) - linesCleared * w.lines;
+
+      // T-spin reward: reduce score (better) when T-spin clears lines
+      if (isTSpin && linesCleared > 0) {
+        score -= tspinPref * linesCleared * 2.0;
+      }
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestX     = col;
+        bestRot   = rot;
+      }
+    }
+    testShape = rotateShapeCW(testShape);
+  }
+
+  // Apply random mistake based on difficulty
+  if (Math.random() < params.mistakeRate) {
+    bestX   += Math.round((Math.random() * 6) - 3);
+    bestRot  = Math.floor(Math.random() * 4);
+  }
+
+  // Execute: rotate first
+  let rotsDone = 0;
+  while (ai.current.rotState !== bestRot && rotsDone < 4) {
+    tryRotate(ai, 1);
+    rotsDone++;
+  }
+
+  // Move horizontally
+  const dx  = bestX - ai.current.x;
+  const dir = dx > 0 ? 1 : -1;
+  for (let i = 0; i < Math.abs(dx); i++) moveHorizontalRaw(ai, dir);
+
+  // Hard drop
+  hardDrop(ai, STATE.player);
+
+  // Possibly T-bag on combo
+  checkAndTbag('combo', ai.combo);
+
+  // Schedule next move
+  if (STATE.phase === 'playing' && ai.isAlive) scheduleAiMove();
 }
 
 
 // ──────────────────────────────────────────────────────────────
-// T-BAG SYSTEM
+// T-BAG SYSTEM — Grain-3: Specific Triggers
 // ──────────────────────────────────────────────────────────────
 
-function maybeTbag(combo) {
+// Track whether AI was near-death before a line clear
+let _aiNearDeath = false;
+
+function checkAiNearDeathStatus() {
+  if (!STATE.ai.isAlive) return;
+  let maxH = 0;
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (STATE.ai.board[r][c]) {
+        const h = ROWS - r;
+        if (h > maxH) maxH = h;
+        break;
+      }
+    }
+  }
+  if (maxH >= Math.floor(ROWS * 0.72) && !_aiNearDeath) {
+    _aiNearDeath = true;
+  }
+}
+
+function checkAndTbag(trigger, combo) {
   if (STATE.phase !== 'playing') return;
-  const threshold = STATE.difficulty === 3 ? 1 : STATE.difficulty === 2 ? 2 : 3;
-  if (combo < threshold) return;
-  if (Math.random() > 0.45) return;
-  showTbag();
+  const diff = AI_DIFFICULTY[STATE.difficulty];
+  const threshold = diff.name === 'DEMON' ? 1 : diff.name === 'RIVAL' ? 2 : 3;
+  if (combo >= threshold && Math.random() < 0.38) {
+    const phrase = pickPhrase(trigger);
+    showTbag(phrase);
+    bus.emit('taunt', phrase);
+  }
 }
 
-// Also tbag on big line clears
+// Trigger: AI clears 4 lines (Tetris), or escapes near-death by clearing ≥2 lines
 bus.on('lineClear', ({ side, rows }) => {
-  if (side === 'ai' && rows.length >= 2) maybeTbag(STATE.ai.combo);
+  if (side !== 'ai' || STATE.phase !== 'playing') return;
+
+  if (rows.length === 4) {
+    // Clean Tetris against the player
+    _aiNearDeath = false; // Tetris clears near-death status
+    setTimeout(() => {
+      const phrase = pickPhrase('tetris');
+      showTbag(phrase);
+      bus.emit('taunt', phrase);
+    }, 150);
+  } else if (_aiNearDeath && rows.length >= 2) {
+    // AI escaped near-death situation
+    _aiNearDeath = false;
+    setTimeout(() => {
+      const phrase = pickPhrase('escape');
+      showTbag(phrase);
+      bus.emit('taunt', phrase);
+    }, 400);
+  } else {
+    _aiNearDeath = false;
+  }
+});
+
+// Trigger: Player tops out while AI has combo ≥ 1
+bus.on('gameOver', ({ winner }) => {
+  if (winner === 'ai' && STATE.ai.combo >= 1) {
+    const phrase = pickPhrase('topout');
+    // Slight delay so result screen doesn't cover it
+    setTimeout(() => { showTbag(phrase); bus.emit('taunt', phrase); }, 300);
+  }
 });
 
 
@@ -1315,14 +1571,14 @@ bus.on('lineClear', ({ side, rows }) => {
 // ──────────────────────────────────────────────────────────────
 
 const INPUT = {
-  left:        false,
-  right:       false,
-  dasTimer:    null,
-  arrTimer:    null,
-  downTimer:   null,
-  DAS:         170,
-  ARR:         50,
-  SDR:         80,  // soft-drop repeat rate
+  left:      false,
+  right:     false,
+  dasTimer:  null,
+  arrTimer:  null,
+  downTimer: null,
+  DAS: 170,
+  ARR: 50,
+  SDR: 80,
 };
 
 function startDAS(dir) {
@@ -1336,12 +1592,11 @@ function startDAS(dir) {
 }
 
 function stopDAS() {
-  if (INPUT.dasTimer) { clearTimeout(INPUT.dasTimer);   INPUT.dasTimer = null; }
-  if (INPUT.arrTimer) { clearInterval(INPUT.arrTimer);  INPUT.arrTimer = null; }
+  if (INPUT.dasTimer) { clearTimeout(INPUT.dasTimer);  INPUT.dasTimer = null; }
+  if (INPUT.arrTimer) { clearInterval(INPUT.arrTimer); INPUT.arrTimer = null; }
 }
 
 function onKeyDown(e) {
-  // Prevent arrow keys from scrolling
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
     e.preventDefault();
   }
@@ -1397,13 +1652,11 @@ function onKeyUp(e) {
   switch (e.key) {
     case 'ArrowLeft':
       INPUT.left = false;
-      if (!INPUT.right) stopDAS();
-      else startDAS(1);
+      if (!INPUT.right) stopDAS(); else startDAS(1);
       break;
     case 'ArrowRight':
       INPUT.right = false;
-      if (!INPUT.left) stopDAS();
-      else startDAS(-1);
+      if (!INPUT.left) stopDAS(); else startDAS(-1);
       break;
     case 'ArrowDown':
       if (INPUT.downTimer) { clearInterval(INPUT.downTimer); INPUT.downTimer = null; }
@@ -1415,6 +1668,7 @@ function bindInputs() {
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup',   onKeyUp);
 
+  // Penalty flavor picker
   DOM.penaltyBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       STATE.penaltyType = btn.dataset.penalty;
@@ -1423,18 +1677,19 @@ function bindInputs() {
     });
   });
 
+  // Difficulty selector (in-game)
   DOM.diffBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       STATE.difficulty = parseInt(btn.dataset.difficulty, 10);
       DOM.diffBtns.forEach(b => b.classList.remove('diff-btn--active'));
       btn.classList.add('diff-btn--active');
-      // Also sync start-screen buttons
       DOM.diffBtnsStart.forEach(b => {
         b.classList.toggle('diff-btn--active', b.dataset.difficulty === btn.dataset.difficulty);
       });
     });
   });
 
+  // Start-screen difficulty selector
   DOM.diffBtnsStart.forEach(btn => {
     btn.addEventListener('click', () => {
       STATE.difficulty = parseInt(btn.dataset.difficulty, 10);
@@ -1464,10 +1719,11 @@ function onStartBtn() {
 }
 
 function startGame() {
-  // Reset both sides
+  // Reset state
   STATE.player = createPlayerState();
   STATE.ai     = createPlayerState();
   STATE.winner = null;
+  _aiNearDeath = false;
 
   // Pre-fill bags and spawn initial pieces
   refillBag(STATE.player);
@@ -1480,18 +1736,22 @@ function startGame() {
   updateStatsUI('ai');
   clearAttackQueueViz('player');
   clearAttackQueueViz('ai');
-  DOM.playerFxOverlay.className = 'board-fx-overlay';
-  DOM.aiFxOverlay.className     = 'board-fx-overlay';
-  DOM.tbagBubble.dataset.hidden = 'true';
+  DOM.playerFxOverlay.className     = 'board-fx-overlay';
+  DOM.aiFxOverlay.className         = 'board-fx-overlay';
+  DOM.tbagBubble.dataset.hidden     = 'true';
   DOM.playerComboToast.dataset.hidden = 'true';
   DOM.aiComboToast.dataset.hidden     = 'true';
   DOM.playerIncoming.classList.remove('is-visible');
   DOM.aiIncoming.classList.remove('is-visible');
+  DOM.playerBoardWrapper.classList.remove('is-danger');
+  DOM.aiBoardWrapper.classList.remove('is-danger');
 
   setBattleStatus('BATTLE!');
   DOM.vsEmblem.classList.add('is-active');
 
   _aiScheduled = false;
+  _tbagCooldown = false;
+  if (_tbagTimer) { clearTimeout(_tbagTimer); _tbagTimer = null; }
   stopDAS();
 
   STATE.phase = 'countdown';
@@ -1518,7 +1778,7 @@ function togglePause() {
 
 function onResume() {
   if (STATE.phase !== 'paused') return;
-  STATE.phase = 'playing';
+  STATE.phase    = 'playing';
   STATE.lastTime = performance.now();
   showGame();
   startLoop();
@@ -1537,8 +1797,11 @@ function endGame(winner) {
   DOM.resultSub.textContent  = won ? '완벽한 승리!' : '다음엔 이기자!';
   document.getElementById('result-screen').dataset.result = won ? 'win' : 'lose';
 
-  // Populate result stats
   const ps = STATE.player;
+  const elapsed = Math.floor((performance.now() - STATE.gameStartTime) / 1000);
+  const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const secs = (elapsed % 60).toString().padStart(2, '0');
+
   DOM.resultStats.innerHTML = `
     <div class="result-stat-tile">
       <span class="stat-label">SCORE</span>
@@ -1555,6 +1818,10 @@ function endGame(winner) {
     <div class="result-stat-tile">
       <span class="stat-label">MAX COMBO</span>
       <span class="stat-value">${ps.maxCombo}</span>
+    </div>
+    <div class="result-stat-tile">
+      <span class="stat-label">TIME</span>
+      <span class="stat-value">${mins}:${secs}</span>
     </div>
   `;
 
@@ -1583,8 +1850,8 @@ function onMenu() {
 // ──────────────────────────────────────────────────────────────
 
 function resizeCanvases() {
-  DOM.bgCanvas.width       = window.innerWidth;
-  DOM.bgCanvas.height      = window.innerHeight;
+  DOM.bgCanvas.width        = window.innerWidth;
+  DOM.bgCanvas.height       = window.innerHeight;
   DOM.particleCanvas.width  = window.innerWidth;
   DOM.particleCanvas.height = window.innerHeight;
   initBgStars();
@@ -1607,19 +1874,18 @@ function init() {
   DOM.pauseScreen.dataset.hidden     = 'true';
   DOM.countdownScreen.dataset.hidden = 'true';
 
-  // Background loop: runs whenever the main game loop isn't
+  // Background loop (runs when game loop isn't)
   let bgRaf = null;
   function bgLoop(ts) {
     if (STATE.phase !== 'playing') {
       animateBgStars(ts);
       bgRaf = requestAnimationFrame(bgLoop);
     } else {
-      bgRaf = null; // game loop takes over
+      bgRaf = null;
     }
   }
   bgRaf = requestAnimationFrame(bgLoop);
 
-  // Restart bg loop when game ends (game loop stops, bg loop picks up)
   bus.on('gameOver', () => {
     if (!bgRaf) bgRaf = requestAnimationFrame(bgLoop);
   });

@@ -163,38 +163,45 @@
 
         </div><!-- /penalty-transfer-lane -->
 
-        <!-- ── Attack Mode Picker ── -->
+        <!-- ── Penalty Flavor Picker ── -->
         <div class="control-card" id="penalty-picker"
-             role="group" aria-label="Attack mode">
-          <div class="control-card-label">ATTACK MODE</div>
+             role="group" aria-label="Penalty flavor">
+          <div class="control-card-label">PENALTY FLAVOR</div>
           <div class="penalty-btn-group">
 
-            <button class="penalty-btn penalty-btn--active"
-                    data-penalty="garbage"
-                    title="상대 보드 하단에 쓰레기 줄 추가">
+            <button class="penalty-btn penalty-btn--active penalty-btn--classic"
+                    data-penalty="classic"
+                    title="단일 구멍 회색 줄 — 고전적">
               <span class="penalty-icon">💀</span>
-              <span class="penalty-name">GARBAGE</span>
+              <span class="penalty-name">CLASSIC</span>
             </button>
 
-            <button class="penalty-btn"
+            <button class="penalty-btn penalty-btn--cheese"
+                    data-penalty="cheese"
+                    title="구멍이 2~3개인 치즈 줄">
+              <span class="penalty-icon">🧀</span>
+              <span class="penalty-name">CHEESE</span>
+            </button>
+
+            <button class="penalty-btn penalty-btn--messy"
+                    data-penalty="messy"
+                    title="구멍이 줄마다 이동하는 혼돈">
+              <span class="penalty-icon">🌀</span>
+              <span class="penalty-name">MESSY</span>
+            </button>
+
+            <button class="penalty-btn penalty-btn--mirror"
                     data-penalty="mirror"
-                    title="상대 방향키를 일시적으로 반전">
+                    title="내 조각 위치를 반전한 구멍">
               <span class="penalty-icon">🪞</span>
               <span class="penalty-name">MIRROR</span>
             </button>
 
-            <button class="penalty-btn"
-                    data-penalty="gravity"
-                    title="상대 블록 낙하 속도 일시 증가">
-              <span class="penalty-icon">⬇️</span>
-              <span class="penalty-name">GRAVITY</span>
-            </button>
-
-            <button class="penalty-btn"
-                    data-penalty="blind"
-                    title="상대 보드 하단을 일시적으로 가림">
-              <span class="penalty-icon">🙈</span>
-              <span class="penalty-name">BLIND</span>
+            <button class="penalty-btn penalty-btn--surge penalty-btn--wide"
+                    data-penalty="surge"
+                    title="폭발적 연속 줄 공격">
+              <span class="penalty-icon">⚡</span>
+              <span class="penalty-name">SURGE — 연속 폭발!</span>
             </button>
 
           </div>
@@ -206,19 +213,19 @@
           <div class="control-card-label">AI LEVEL</div>
           <div class="diff-btn-group">
 
-            <button class="diff-btn" data-difficulty="1" title="쉬움">
+            <button class="diff-btn" data-difficulty="1" title="루키 — 느리고 실수가 많음">
               <span class="diff-face">😊</span>
-              <span class="diff-name">EASY</span>
+              <span class="diff-name">ROOKIE</span>
             </button>
 
-            <button class="diff-btn diff-btn--active" data-difficulty="2" title="보통">
+            <button class="diff-btn diff-btn--active" data-difficulty="2" title="라이벌 — 적당히 강함">
               <span class="diff-face">😤</span>
-              <span class="diff-name">NORMAL</span>
+              <span class="diff-name">RIVAL</span>
             </button>
 
-            <button class="diff-btn" data-difficulty="3" title="어려움">
+            <button class="diff-btn diff-btn--demon" data-difficulty="3" title="데몬 — 거의 완벽, T-스핀 추구">
               <span class="diff-face">👹</span>
-              <span class="diff-name">HARD</span>
+              <span class="diff-name">DEMON</span>
             </button>
 
           </div>
@@ -363,9 +370,9 @@
           <div class="start-difficulty-row">
             <span class="start-label">DIFFICULTY</span>
             <div class="diff-btn-group diff-btn-group--start">
-              <button class="diff-btn" data-difficulty="1">😊 EASY</button>
-              <button class="diff-btn diff-btn--active" data-difficulty="2">😤 NORMAL</button>
-              <button class="diff-btn" data-difficulty="3">👹 HARD</button>
+              <button class="diff-btn" data-difficulty="1">😊 ROOKIE</button>
+              <button class="diff-btn diff-btn--active" data-difficulty="2">😤 RIVAL</button>
+              <button class="diff-btn diff-btn--demon" data-difficulty="3">👹 DEMON</button>
             </div>
           </div>
         </div>
