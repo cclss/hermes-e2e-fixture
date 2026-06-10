@@ -1602,7 +1602,65 @@ kbd.key {
 
 
 /* ─────────────────────────────────────────────────────────────
-   16. UTILITY
+   16. GRAIN-4 VFX — CSS-side effects
+   ───────────────────────────────────────────────────────────── */
+
+/* ── (D) Board shake on garbage receive ── */
+/* (already defined in section 15 as .board-wrapper.is-shaking) */
+
+/* ── Garbage-impact squash+stretch ── */
+/* Triggered by JS via VFX.triggerGarbageImpact() when orb lands */
+@keyframes garbage-impact {
+  0%   { transform: scaleY(1.06) scaleX(0.96) translateY(-5px); }
+  30%  { transform: scaleY(0.95) scaleX(1.03) translateY(3px); }
+  58%  { transform: scaleY(1.02) scaleX(0.99) translateY(-1px); }
+  78%  { transform: scaleY(0.99) scaleX(1.005); }
+  100% { transform: scaleY(1)    scaleX(1)    translateY(0); }
+}
+
+.board-wrapper.garbage-impact {
+  animation: garbage-impact 340ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* ── Piece glow CSS filter — applied by JS per current piece color ── */
+/* The canvas overlay handles bloom; this adds a subtle drop-shadow
+   on the board canvas itself for extra pop.
+   The class is added/removed by renderBoard glow logic. */
+.tetris-board.has-piece-glow {
+  filter: drop-shadow(0 0 6px var(--piece-glow-color, rgba(91,155,245,0.5)));
+  transition: filter 80ms linear;
+}
+
+/* ── Transfer bolt flash ── (already .transfer-bolt.is-sending) */
+
+/* ── Particle canvas z-index guard — ensure it stays on top ── */
+#particle-canvas {
+  z-index: var(--z-particle);
+  mix-blend-mode: normal;
+}
+
+/* ── Combo heat board glow pulse (CSS layer on top of canvas glow) ── */
+/* The canvas VFX draws the radial gradient; this adds a subtle border glow
+   that reacts to combo via JS adding/removing the class. */
+.board-wrapper.is-hot {
+  box-shadow:
+    var(--sh-board),
+    0 0 32px rgba(255, 190, 50, 0.28),
+    6px 6px 0 var(--c-ink),
+    8px 10px 24px rgba(0,0,0,0.7);
+  transition: box-shadow 0.4s ease-out;
+}
+
+.board-wrapper--ai.is-hot {
+  box-shadow:
+    var(--sh-board),
+    0 0 32px rgba(255, 75, 45, 0.28),
+    6px 6px 0 var(--c-ink),
+    8px 10px 24px rgba(0,0,0,0.7);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   17. UTILITY
    ───────────────────────────────────────────────────────────── */
 .visually-hidden {
   position: absolute;

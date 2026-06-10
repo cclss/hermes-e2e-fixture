@@ -519,7 +519,9 @@ function lockPiece(ps, targetPs) {
   }
 
   if (clearedRows.length > 0) {
-    bus.emit('lineClear', { side: ps === STATE.player ? 'player' : 'ai', rows: clearedRows });
+    // Capture cell colors BEFORE rows are spliced (grain-4: needed for burst particles)
+    const rowColors = clearedRows.map(r => [...ps.board[r]]);
+    bus.emit('lineClear', { side: ps === STATE.player ? 'player' : 'ai', rows: clearedRows, rowColors });
   }
 
   clearedRows.sort((a, b) => b - a);
@@ -565,6 +567,9 @@ function lockPiece(ps, targetPs) {
     ps.backToBack = false;
     thudBoard(side);
   }
+
+  // Grain-4: emit pieceLocked for VFX lock-flash (side already defined above)
+  bus.emit('pieceLocked', { side, piece: ps.current });
 
   ps.current = null;
   spawnPiece(ps);
@@ -1749,6 +1754,7 @@ function startGame() {
   setBattleStatus('BATTLE!');
   DOM.vsEmblem.classList.add('is-active');
 
+  VFX.reset();
   _aiScheduled = false;
   _tbagCooldown = false;
   if (_tbagTimer) { clearTimeout(_tbagTimer); _tbagTimer = null; }
@@ -1855,6 +1861,7 @@ function resizeCanvases() {
   DOM.particleCanvas.width  = window.innerWidth;
   DOM.particleCanvas.height = window.innerHeight;
   initBgStars();
+  if (typeof VFX !== 'undefined') VFX.refreshRects();
 }
 
 
@@ -1889,7 +1896,604 @@ function init() {
   bus.on('gameOver', () => {
     if (!bgRaf) bgRaf = requestAnimationFrame(bgLoop);
   });
+
+  // ── Grain-4: wire VFX events ──
+  bus.on('lineClear',      data => VFX.onLineClear(data));
+  bus.on('penalty:queued', data => VFX.onPenaltyQueued(data));
+  bus.on('pieceLocked',    data => VFX.onPieceLocked(data));
+  bus.on('combo',          data => VFX.onCombo(data));
+
+  // Start VFX overlay loop
+  VFX.start();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// GRAIN-4: VFX & PARTICLE SYSTEM
+// Full-screen canvas overlay (particle-canvas) — pointer-events none
+// Driven by bus events; reads game state only.
+// ═══════════════════════════════════════════════════════════════
+
+// ── VFX Config — mirrors vfx-timing Token Group ─────────────
+const VFX_CONFIG = {
+  burstBaseCount:   10,      // particles per cell
+  burstComboMult:   0.32,    // extra multiplier per combo level
+  particleDragBase: 0.86,    // per-60fps-frame velocity decay
+  particleGravity:  210,     // px/s² downward
+  particleLifeBase: 0.90,
+  particleDecayMin: 0.020,
+  particleDecayRng: 0.012,
+
+  orbCollectDur:    720,     // ms — collect phase
+  orbChargeDur:     220,     // ms — pulse/charge
+  orbLaunchDur:     430,     // ms — arc flight
+  orbImpactDur:     260,     // ms — expand+fade on impact
+
+  shockwaveSpeed:   250,     // px/s radial expansion
+  shockwaveDecay:   2.3,     // alpha/s
+
+  glowBloomAlpha:   0.30,    // piece glow peak opacity
+  glowBloomRadius:  1.48,    // glow radius as CELL multiplier
+
+  heatPerLine:      0.22,
+  heatDecayRate:    0.36,    // per second
+  heatMaxAlpha:     0.13,    // board backdrop max overlay alpha
+};
+
+// ── VFX Module ────────────────────────────────────────────────
+const VFX = (() => {
+  const canvas = DOM.particleCanvas;
+  const ctx    = CTX.particle;
+
+  let particles  = [];
+  let shockwaves = [];
+  let orbs       = [];
+  let rafId      = null;
+  let lastTs     = 0;
+
+  const heat = { player: 0, ai: 0 };
+
+  // ── Board rect cache ──────────────────────────────────────
+  const _rects = { player: null, ai: null };
+
+  function refreshRects() {
+    _rects.player = DOM.playerBoardWrapper.getBoundingClientRect();
+    _rects.ai     = DOM.aiBoardWrapper.getBoundingClientRect();
+  }
+
+  function getRect(side) {
+    if (!_rects[side]) refreshRects();
+    return _rects[side];
+  }
+
+  function cellCenter(side, col, row) {
+    const r = getRect(side);
+    return {
+      x: r.left + col * CELL + CELL * 0.5,
+      y: r.top  + row * CELL + CELL * 0.5,
+    };
+  }
+
+  // ── Color helpers ─────────────────────────────────────────
+  function parseHex(hex) {
+    if (!hex || hex.charAt(0) !== '#' || hex.length < 7) return [160, 160, 180];
+    return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+  }
+
+  function rgba(hex, a) {
+    const [r,g,b] = parseHex(hex);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // (A) LINE-CLEAR BURST
+  // Chunky square particles from each cleared cell + shockwave
+  // ─────────────────────────────────────────────────────────
+  function spawnLineClearBurst(side, rows, rowColors, comboLevel) {
+    refreshRects();
+    const cfg  = VFX_CONFIG;
+    const mult = 1 + Math.min(comboLevel, 6) * cfg.burstComboMult;
+
+    for (let ri = 0; ri < rows.length; ri++) {
+      const row   = rows[ri];
+      const rColors = (rowColors && rowColors[ri]) || [];
+
+      for (let c = 0; c < COLS; c++) {
+        const rawColor = rColors[c];
+        const color    = (rawColor && rawColor !== 0) ? rawColor : '#AAAACC';
+        const { x, y } = cellCenter(side, c, row);
+        const pCount   = Math.round((cfg.burstBaseCount + Math.random() * 4) * mult);
+
+        for (let i = 0; i < pCount; i++) {
+          const angle = (Math.PI * 2 / pCount) * i + (Math.random() - 0.5) * 0.7;
+          const spd   = 65 + Math.random() * 150 * mult;
+          particles.push({
+            type:    'burst',
+            x, y,
+            vx:      Math.cos(angle) * spd,
+            vy:      Math.sin(angle) * spd - 45,
+            size:    5 + Math.random() * 9,
+            color,
+            alpha:   1.0,
+            life:    cfg.particleLifeBase,
+            decay:   cfg.particleDecayMin + Math.random() * cfg.particleDecayRng,
+            drag:    cfg.particleDragBase,
+            gravity: cfg.particleGravity,
+            outline: true,
+          });
+        }
+      }
+    }
+
+    // Shockwave rings — one per cleared row for multi-line; bonus ring on combo
+    const ringCount = rows.length + (comboLevel >= 2 ? 1 : 0);
+    for (let k = 0; k < ringCount; k++) {
+      const row   = rows[Math.min(k, rows.length - 1)];
+      const { x: cx } = cellCenter(side, 4, row);
+      const { y: cy } = cellCenter(side, 4, row);
+      const baseColor = ((rowColors && rowColors[0]) || [])[4] || '#FFFFFFAA';
+      shockwaves.push({
+        x: cx, y: cy,
+        r: 6,
+        speed: cfg.shockwaveSpeed + k * 28,
+        alpha: 0.75 - k * 0.12,
+        color: baseColor,
+        lineW: 3.0 - k * 0.4,
+      });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // (B) TRANSFER ORB
+  // Debris particles collect at board bottom → orb forms →
+  // arcs to opponent → squash+stretch impact
+  // ─────────────────────────────────────────────────────────
+  function spawnTransferOrb(fromSide, lineCount, flavor) {
+    refreshRects();
+    const fromRect = getRect(fromSide);
+    const toSide   = fromSide === 'player' ? 'ai' : 'player';
+    const color    = PARTICLE_COLORS[flavor] || '#9898AA';
+
+    // Collection point: bottom-center of the sending board
+    const collectX = fromRect.left + fromRect.width * 0.5;
+    const collectY = fromRect.bottom - 18;
+
+    // Shared ref object so debris particles can track orb state
+    const ref = { orb: null };
+
+    // Debris particles — spawn across the board face
+    const debrisN = Math.min(lineCount * 9, 42);
+    for (let i = 0; i < debrisN; i++) {
+      const sx = fromRect.left + Math.random() * fromRect.width;
+      const sy = fromRect.top  + Math.random() * fromRect.height;
+      particles.push({
+        type:     'debris',
+        x: sx, y: sy,
+        vx:       (Math.random() - 0.5) * 38,
+        vy:       15 + Math.random() * 25,
+        size:     3 + Math.random() * 5,
+        color,
+        alpha:    0.7 + Math.random() * 0.3,
+        life:     1.0,
+        decay:    0,
+        drag:     0.93,
+        gravity:  0,
+        outline:  true,
+        ref,
+        collectX,
+        collectY,
+        seekAge:  0,
+      });
+    }
+
+    const orb = {
+      x: collectX, y: collectY,
+      r: 0,
+      maxR: 15 + lineCount * 2.8,
+      color,
+      alpha: 0,
+      phase: 'collect',
+      timer: 0,
+      collectDur: VFX_CONFIG.orbCollectDur,
+      chargeDur:  VFX_CONFIG.orbChargeDur,
+      launchDur:  VFX_CONFIG.orbLaunchDur,
+      impactDur:  VFX_CONFIG.orbImpactDur,
+      fromSide,
+      toSide,
+      toRect:  null,    // filled on launch
+      startX:  0, startY: 0, endX: 0, endY: 0, peakY: 0,
+      trail: [],
+      ref,
+    };
+    ref.orb = orb;
+    orbs.push(orb);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // (C-lock) LOCK FLASH — bright white flash on locked cells
+  // ─────────────────────────────────────────────────────────
+  function spawnLockFlash(side, piece) {
+    if (!piece) return;
+    refreshRects();
+    const rect = getRect(side);
+    const { shape, x: px, y: py } = piece;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        const br = py + r;
+        if (br < 0 || br >= ROWS) continue;
+        particles.push({
+          type:    'lockflash',
+          x: rect.left + (px + c) * CELL + CELL * 0.5,
+          y: rect.top  + br * CELL + CELL * 0.5,
+          vx: 0, vy: 0,
+          size:    CELL - 1,
+          color:   '#FFFFFF',
+          alpha:   0.62,
+          life:    0.62,
+          decay:   0.052,
+          drag:    1,
+          gravity: 0,
+          outline: false,
+        });
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // (C-glow) ACTIVE PIECE GLOW — radial bloom on overlay canvas
+  // ─────────────────────────────────────────────────────────
+  function drawPieceGlow(side) {
+    if (STATE.phase !== 'playing') return;
+    const ps = side === 'player' ? STATE.player : STATE.ai;
+    if (!ps.current) return;
+    const rect = getRect(side);
+    const { shape, x: px, y: py, color } = ps.current;
+    const [r,g,b] = parseHex(color);
+    const radius = CELL * VFX_CONFIG.glowBloomRadius;
+    const peakA  = VFX_CONFIG.glowBloomAlpha;
+
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (!shape[row][col]) continue;
+        const br = py + row;
+        if (br < 0 || br >= ROWS) continue;
+        const cx = rect.left + (px + col) * CELL + CELL * 0.5;
+        const cy = rect.top  + br * CELL + CELL * 0.5;
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        grad.addColorStop(0,   `rgba(${r},${g},${b},${peakA})`);
+        grad.addColorStop(0.55,`rgba(${r},${g},${b},${(peakA * 0.35).toFixed(2)})`);
+        grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Board backdrop radial gradient shifting with combo heat
+  function drawBoardBackdrop(side) {
+    const h = heat[side];
+    if (h < 0.02) return;
+    const rect = getRect(side);
+    const cx = rect.left + rect.width  * 0.5;
+    const cy = rect.top  + rect.height * 0.58;
+    const hc  = side === 'player' ? [255, 185, 45] : [255, 75, 45];
+    const maxA = VFX_CONFIG.heatMaxAlpha * h;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rect.height * 0.7);
+    grad.addColorStop(0,   `rgba(${hc[0]},${hc[1]},${hc[2]},${maxA.toFixed(3)})`);
+    grad.addColorStop(0.5, `rgba(${hc[0]},${hc[1]},${hc[2]},${(maxA*0.45).toFixed(3)})`);
+    grad.addColorStop(1,   `rgba(${hc[0]},${hc[1]},${hc[2]},0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // UPDATE LOGIC
+  // ─────────────────────────────────────────────────────────
+  function updateParticle(p, dt) {
+    if (p.type === 'debris') {
+      p.seekAge += dt;
+      const orb = p.ref && p.ref.orb;
+
+      if (!orb || orb.phase === 'dead') { p.alpha = 0; return; }
+
+      if (orb.phase === 'impact') { p.alpha -= dt * 5; return; }
+
+      if (orb.phase === 'launch') {
+        // Trail behind orb
+        p.x += (orb.x - p.x) * 9 * dt;
+        p.y += (orb.y - p.y) * 9 * dt;
+        p.alpha -= dt * 4.5;
+        return;
+      }
+
+      if (orb.phase === 'charge') {
+        p.x += (orb.x - p.x) * 14 * dt;
+        p.y += (orb.y - p.y) * 14 * dt;
+        p.alpha -= dt * 3.5;
+        return;
+      }
+
+      // Collect phase: gravity-style attraction toward collect point
+      const dx = p.collectX - p.x;
+      const dy = p.collectY - p.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 8) { p.alpha = 0; return; }
+
+      const progress   = Math.min(p.seekAge / (VFX_CONFIG.orbCollectDur * 0.001), 1);
+      const seekForce  = progress * progress * 4.5;
+      p.vx += (dx / dist) * seekForce * 380 * dt;
+      p.vy += (dy / dist) * seekForce * 380 * dt;
+      // Subtle swirl
+      p.vx += (p.collectY - p.y) * 0.6 * dt;
+      p.vy -= (p.collectX - p.x) * 0.6 * dt;
+      p.vx *= Math.pow(p.drag, dt * 60);
+      p.vy *= Math.pow(p.drag, dt * 60);
+      p.x  += p.vx * dt;
+      p.y  += p.vy * dt;
+      return;
+    }
+
+    // Standard physics (burst, lockflash)
+    p.vx *= Math.pow(p.drag, dt * 60);
+    p.vy *= Math.pow(p.drag, dt * 60);
+    p.vy += (p.gravity || 0) * dt;
+    p.x  += p.vx * dt;
+    p.y  += p.vy * dt;
+    p.life  -= p.decay;
+    p.alpha  = p.life;
+    if (p.size > 2) p.size -= dt * 3;
+  }
+
+  function updateOrb(orb, dt) {
+    orb.timer += dt * 1000;
+
+    if (orb.phase === 'collect') {
+      const t   = Math.min(orb.timer / orb.collectDur, 1);
+      orb.r     = orb.maxR * t * t;
+      orb.alpha = Math.min(t * 1.6, 0.92);
+      if (t >= 1) { orb.phase = 'charge'; orb.timer = 0; }
+    }
+    else if (orb.phase === 'charge') {
+      const t   = orb.timer / orb.chargeDur;
+      orb.r     = orb.maxR * (1 + 0.22 * Math.sin(t * Math.PI * 5));
+      orb.alpha = 0.96;
+      if (orb.timer >= orb.chargeDur) {
+        orb.phase  = 'launch';
+        orb.timer  = 0;
+        orb.startX = orb.x;
+        orb.startY = orb.y;
+        // Fresh rect for the target board
+        orb.toRect = orb.toSide === 'player'
+          ? DOM.playerBoardWrapper.getBoundingClientRect()
+          : DOM.aiBoardWrapper.getBoundingClientRect();
+        orb.endX  = orb.toRect.left + orb.toRect.width * 0.5;
+        orb.endY  = orb.toRect.bottom - 18;
+        orb.peakY = Math.min(orb.startY, orb.endY) - 150;
+      }
+    }
+    else if (orb.phase === 'launch') {
+      const t  = Math.min(orb.timer / orb.launchDur, 1);
+      // Ease-in-out cubic
+      const te = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+      orb.x = orb.startX + (orb.endX - orb.startX) * te;
+      // Quadratic Bezier arc
+      const it = 1 - t;
+      orb.y = it*it*orb.startY + 2*it*t*orb.peakY + t*t*orb.endY;
+      orb.alpha = 1.0;
+      orb.r     = orb.maxR * (0.78 + 0.22 * Math.sin(t * Math.PI));
+
+      if (Math.random() < 0.55) {
+        orb.trail.push({
+          x: orb.x + (Math.random()-0.5)*4,
+          y: orb.y + (Math.random()-0.5)*4,
+          alpha: 0.55,
+          r: orb.r * (0.28 + Math.random() * 0.38),
+        });
+      }
+
+      if (t >= 1) {
+        orb.phase = 'impact';
+        orb.timer = 0;
+        triggerGarbageImpact(orb.toSide);
+      }
+    }
+    else if (orb.phase === 'impact') {
+      const t   = Math.min(orb.timer / orb.impactDur, 1);
+      orb.r     = orb.maxR * (1 + t * 3.2);
+      orb.alpha = 1 - t * t;
+      if (t >= 1) orb.phase = 'dead';
+    }
+
+    // Age trail
+    for (let i = orb.trail.length - 1; i >= 0; i--) {
+      orb.trail[i].alpha -= dt * 4.2;
+      if (orb.trail[i].alpha <= 0) orb.trail.splice(i, 1);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // DRAW LOGIC
+  // ─────────────────────────────────────────────────────────
+  function drawParticle(p) {
+    const a = Math.max(0, Math.min(1, p.alpha));
+    if (a < 0.02) return;
+    const s = Math.max(0.5, p.size);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-s*0.5, -s*0.5, s, s);
+    if (p.outline && s > 4) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth   = 1.5;
+      ctx.strokeRect(-s*0.5, -s*0.5, s, s);
+    }
+    if (s > 5) {
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.fillRect(-s*0.5 + 1, -s*0.5 + 1, s*0.42, 2);
+      ctx.fillRect(-s*0.5 + 1, -s*0.5 + 1, 2, s*0.42);
+    }
+    ctx.restore();
+  }
+
+  function drawShockwave(sw) {
+    if (sw.alpha < 0.01) return;
+    ctx.save();
+    ctx.globalAlpha = sw.alpha;
+    ctx.strokeStyle = sw.color;
+    ctx.lineWidth   = Math.max(0.5, sw.lineW || 2.5);
+    ctx.shadowBlur  = 10;
+    ctx.shadowColor = sw.color;
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawOrb(orb) {
+    // Orb trail
+    const [or, og, ob] = parseHex(orb.color);
+    for (const t of orb.trail) {
+      if (t.alpha < 0.01) continue;
+      ctx.save();
+      ctx.globalAlpha = t.alpha * 0.55;
+      const grad = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.r);
+      grad.addColorStop(0,   `rgba(${or},${og},${ob},0.85)`);
+      grad.addColorStop(0.6, `rgba(${or},${og},${ob},0.25)`);
+      grad.addColorStop(1,   `rgba(${or},${og},${ob},0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    if (orb.alpha < 0.02) return;
+    const ox = orb.x, oy = orb.y, sr = orb.r;
+    ctx.save();
+    ctx.globalAlpha = orb.alpha;
+
+    // Outer diffuse glow
+    const outer = ctx.createRadialGradient(ox, oy, 0, ox, oy, sr * 2.6);
+    outer.addColorStop(0,   `rgba(${or},${og},${ob},0.38)`);
+    outer.addColorStop(0.5, `rgba(${or},${og},${ob},0.12)`);
+    outer.addColorStop(1,   `rgba(${or},${og},${ob},0)`);
+    ctx.fillStyle = outer;
+    ctx.beginPath();
+    ctx.arc(ox, oy, sr * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Orb body with highlight
+    const body = ctx.createRadialGradient(
+      ox - sr * 0.28, oy - sr * 0.28, 0,
+      ox, oy, sr
+    );
+    body.addColorStop(0,    `rgba(255,255,255,0.92)`);
+    body.addColorStop(0.22, `rgba(${or},${og},${ob},1)`);
+    body.addColorStop(0.65, `rgba(${Math.floor(or*0.72)},${Math.floor(og*0.72)},${Math.floor(ob*0.72)},0.9)`);
+    body.addColorStop(1,    `rgba(${Math.floor(or*0.4)},${Math.floor(og*0.4)},${Math.floor(ob*0.4)},0.85)`);
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.arc(ox, oy, sr, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cartoon outline
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth   = 2.5;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // ── Impact helpers ────────────────────────────────────────
+  function triggerGarbageImpact(side) {
+    const el = side === 'player' ? DOM.playerBoardWrapper : DOM.aiBoardWrapper;
+    el.classList.remove('garbage-impact');
+    void el.offsetWidth;
+    el.classList.add('garbage-impact');
+    el.addEventListener('animationend', () => el.classList.remove('garbage-impact'), { once: true });
+  }
+
+  // ── Main tick ─────────────────────────────────────────────
+  function tick(ts) {
+    rafId  = requestAnimationFrame(tick);
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Board backdrop heat glow
+    drawBoardBackdrop('player');
+    drawBoardBackdrop('ai');
+
+    // Active piece bloom
+    drawPieceGlow('player');
+    drawPieceGlow('ai');
+
+    // Decay combo heat
+    heat.player = Math.max(0, heat.player - dt * VFX_CONFIG.heatDecayRate);
+    heat.ai     = Math.max(0, heat.ai     - dt * VFX_CONFIG.heatDecayRate);
+
+    // Orbs
+    for (let i = orbs.length - 1; i >= 0; i--) {
+      if (orbs[i].phase !== 'dead') { updateOrb(orbs[i], dt); drawOrb(orbs[i]); }
+      else orbs.splice(i, 1);
+    }
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      updateParticle(p, dt);
+      if (p.alpha < 0.02 || p.life <= 0) particles.splice(i, 1);
+      else drawParticle(p);
+    }
+
+    // Shockwaves
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+      const sw = shockwaves[i];
+      sw.r     += sw.speed * dt;
+      sw.alpha -= VFX_CONFIG.shockwaveDecay * dt;
+      if (sw.alpha <= 0) shockwaves.splice(i, 1);
+      else drawShockwave(sw);
+    }
+  }
+
+  // ── Public API ────────────────────────────────────────────
+  return {
+    start() {
+      if (rafId) cancelAnimationFrame(rafId);
+      lastTs = performance.now();
+      rafId  = requestAnimationFrame(tick);
+    },
+    stop() {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    },
+    reset() {
+      particles.length  = 0;
+      shockwaves.length = 0;
+      orbs.length       = 0;
+      heat.player = 0;
+      heat.ai     = 0;
+    },
+    refreshRects,
+    onLineClear({ side, rows, rowColors }) {
+      const ps = side === 'player' ? STATE.player : STATE.ai;
+      spawnLineClearBurst(side, rows, rowColors, Math.max(0, ps.combo));
+      heat[side] = Math.min(1.0, heat[side] + VFX_CONFIG.heatPerLine * rows.length);
+    },
+    onPenaltyQueued({ fromSide, count, flavor }) {
+      spawnTransferOrb(fromSide, count, flavor);
+    },
+    onPieceLocked({ side, piece }) {
+      spawnLockFlash(side, piece);
+    },
+    onCombo({ side, combo }) {
+      heat[side] = Math.min(1.0, heat[side] + 0.11 * combo);
+    },
+  };
+})();
 
 // Boot
 init();
