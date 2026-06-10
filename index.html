@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hello, World!</title>
+  <style>
+    /* ── Token Group: color ───────────────────── */
+    :root {
+      --color-bg: #ffffff;
+      --color-text-primary: #1a1a1a;
+    }
+
+    /* ── Token Group: typography ──────────────── */
+    :root {
+      --font-family-base: system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, sans-serif;
+      --text-size-display: 3rem;
+      --text-weight-display: 700;
+      --text-line-height-display: 1.2;
+    }
+
+    /* ── Token Group: spacing ─────────────────── */
+    :root {
+      --spacing-page-v: 0;
+      --spacing-page-h: 1rem;
+    }
+
+    /* ── Base reset ───────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ── Component: landing-heading ──────────── */
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--color-bg);
+      font-family: var(--font-family-base);
+      padding: var(--spacing-page-v) var(--spacing-page-h);
+    }
+
+    .landing-heading {
+      color: var(--color-text-primary);
+      font-size: var(--text-size-display);
+      font-weight: var(--text-weight-display);
+      line-height: var(--text-line-height-display);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="landing-heading">hello, world!</h1>
+</body>
+</html>
