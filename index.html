@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>가위바위보</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <header class="header">
+      <h1 class="title">가위바위보</h1>
+      <div class="difficulty-selector" role="group" aria-label="컴퓨터 난이도 선택">
+        <button class="difficulty-btn active" data-level="easy">쉬움</button>
+        <button class="difficulty-btn" data-level="normal">보통</button>
+        <button class="difficulty-btn" data-level="hard">어려움</button>
+      </div>
+    </header>
+
+    <section class="scoreboard" aria-label="현재 점수">
+      <div class="score-item">
+        <span class="score-label">나</span>
+        <span class="score-value" id="player-score">0</span>
+      </div>
+      <div class="score-divider" aria-hidden="true">:</div>
+      <div class="score-item">
+        <span class="score-label">컴퓨터</span>
+        <span class="score-value" id="computer-score">0</span>
+      </div>
+    </section>
+
+    <section class="battle-area" aria-label="대결 현황">
+      <div class="choice-display" id="player-display">
+        <span class="choice-emoji" id="player-emoji" aria-hidden="true">❓</span>
+        <span class="choice-label" id="player-label">선택하세요</span>
+      </div>
+      <div class="vs-badge" aria-hidden="true">VS</div>
+      <div class="choice-display" id="computer-display">
+        <span class="choice-emoji" id="computer-emoji" aria-hidden="true">❓</span>
+        <span class="choice-label" id="computer-label">대기중…</span>
+      </div>
+    </section>
+
+    <div class="result-banner" id="result-banner" aria-live="polite" role="status">
+      <span id="result-text"></span>
+    </div>
+
+    <section class="action-area" aria-label="선택 버튼">
+      <button class="choice-btn" data-choice="scissors" aria-label="가위 선택">
+        <span class="btn-emoji" aria-hidden="true">✂️</span>
+        <span class="btn-label">가위</span>
+      </button>
+      <button class="choice-btn" data-choice="rock" aria-label="바위 선택">
+        <span class="btn-emoji" aria-hidden="true">🪨</span>
+        <span class="btn-label">바위</span>
+      </button>
+      <button class="choice-btn" data-choice="paper" aria-label="보 선택">
+        <span class="btn-emoji" aria-hidden="true">📄</span>
+        <span class="btn-label">보</span>
+      </button>
+    </section>
+
+    <button class="reset-btn" id="reset-btn" aria-label="점수 초기화">점수 초기화</button>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
