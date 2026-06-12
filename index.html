@@ -997,6 +997,273 @@
 
       console.log('[Game] Player game loop started.');
       playerState.animId = requestAnimationFrame(gameLoop);
+
+      /* grain-4: CPU AI 시작 */
+      startCpuGame();
+    }
+
+    /* =====================================================
+       grain-4: CPU AI 플레이어
+       독립 상태 — 플레이어 보드에 영향 없음
+    ===================================================== */
+
+    var AI_MOVE_INTERVAL = 250; /* ms — 이동 단계 간격 (플레이어보다 살짝 느리게) */
+    var AI_MISTAKE_PROB  = 0.15; /* 15% 확률로 차선책 선택 → 인간미 부여 */
+
+    /* --- AI 가중치 (Dellacherie 계수 기반) --- */
+    var AI_W = {
+      aggregateHeight: -0.510066,
+      completeLines:    0.760666,
+      holes:           -0.35663,
+      bumpiness:       -0.184483,
+    };
+
+    var cpuState = {
+      board:          null,
+      currentPiece:   null,
+      nextPieceType:  null,
+      score:          0,
+      isRunning:      false,
+      target:         null,   /* { rotState, col } — AI가 노리는 목표 위치 */
+      moveTimer:      null,   /* setInterval handle */
+      pendingGarbage: 0,      /* grain-5에서 사용 예약 */
+    };
+
+    /* ---- 휴리스틱 보조 함수 ---- */
+
+    /** 각 열의 높이(바닥에서 맨 위 블록까지) 배열 반환 */
+    function getBoardHeights(board) {
+      var h = Array(COLS).fill(0);
+      for (var c = 0; c < COLS; c++) {
+        for (var r = 0; r < ROWS; r++) {
+          if (board[r][c] !== null) { h[c] = ROWS - r; break; }
+        }
+      }
+      return h;
+    }
+
+    /**
+     * 보드 상태를 숫자 점수로 평가한다. 높을수록 좋은 상태.
+     * @param {Array} board  - ROWS×COLS 2D 배열
+     * @returns {number}
+     */
+    function evaluateBoard(board) {
+      var heights = getBoardHeights(board);
+
+      /* Aggregate Height */
+      var aggH = 0;
+      for (var c = 0; c < COLS; c++) aggH += heights[c];
+
+      /* Complete Lines */
+      var complete = 0;
+      for (var r = 0; r < ROWS; r++) {
+        var full = true;
+        for (var c = 0; c < COLS; c++) {
+          if (board[r][c] === null) { full = false; break; }
+        }
+        if (full) complete++;
+      }
+
+      /* Holes */
+      var holes = 0;
+      for (var c = 0; c < COLS; c++) {
+        var blockSeen = false;
+        for (var r = 0; r < ROWS; r++) {
+          if (board[r][c] !== null) blockSeen = true;
+          else if (blockSeen) holes++;
+        }
+      }
+
+      /* Bumpiness */
+      var bump = 0;
+      for (var c = 0; c < COLS - 1; c++) {
+        bump += Math.abs(heights[c] - heights[c + 1]);
+      }
+
+      return AI_W.aggregateHeight * aggH
+           + AI_W.completeLines   * complete
+           + AI_W.holes           * holes
+           + AI_W.bumpiness       * bump;
+    }
+
+    /**
+     * 현재 피스에 대해 모든 회전×열 조합을 평가해 최적 목표를 반환한다.
+     * 15% 확률로 차선책(상위 5 후보 중 랜덤)을 선택해 인간미를 부여한다.
+     * @param {Array} board
+     * @param {string} pieceType
+     * @returns {{ rotState: number, col: number }}
+     */
+    function findBestMove(board, pieceType) {
+      var candidates = [];
+      var spawnRow = (pieceType === 'I') ? -1 : 0;
+
+      for (var rot = 0; rot < 4; rot++) {
+        var shape = SHAPES[pieceType][rot];
+        for (var col = -2; col < COLS + 2; col++) {
+          if (!isValidPosition(board, shape, spawnRow, col)) continue;
+          var dropRow  = calcGhostRow(board, shape, spawnRow, col);
+          var tmpBoard = board.map(function (r) { return r.slice(); });
+          lockPiece(tmpBoard, shape, dropRow, col, pieceType);
+          candidates.push({ rotState: rot, col: col, score: evaluateBoard(tmpBoard) });
+        }
+      }
+
+      if (candidates.length === 0) {
+        var sp = getSpawnPos(pieceType);
+        return { rotState: 0, col: sp.col };
+      }
+
+      candidates.sort(function (a, b) { return b.score - a.score; });
+
+      /* 15% 실수: 상위 5개 후보 중 랜덤 선택 */
+      if (Math.random() < AI_MISTAKE_PROB) {
+        var pool = candidates.slice(0, Math.min(5, candidates.length));
+        return pool[Math.floor(Math.random() * pool.length)];
+      }
+
+      return candidates[0];
+    }
+
+    /* ---- CPU 렌더링 헬퍼 ---- */
+
+    function updateCpuScore() {
+      document.getElementById('score-cpu').textContent = cpuState.score;
+    }
+
+    function updateCpuNextPiece() {
+      var ctx  = document.getElementById('next-cpu').getContext('2d');
+      var type = cpuState.nextPieceType;
+      drawNextPiece(ctx, { type: type, grid: SHAPES[type][0] });
+    }
+
+    function renderCpuBoard() {
+      if (!cpuState.currentPiece) return;
+      var ctx   = document.getElementById('canvas-cpu').getContext('2d');
+      var piece = cpuState.currentPiece;
+      var shape = getShape(piece.type, piece.rotState);
+      var ghost = calcGhostRow(cpuState.board, shape, piece.row, piece.col);
+      drawBoard(ctx, cpuState.board);
+      drawGhost(ctx, shape, piece.col, ghost, piece.type);
+      drawPiece(ctx, shape, piece.col, piece.row, piece.type);
+    }
+
+    /* ---- CPU 피스 스폰 ---- */
+
+    /**
+     * 다음 피스를 CPU 보드에 스폰하고 최적 목표를 계산한다.
+     * 스폰 위치가 막혀 있으면 CPU가 게임 오버 처리된다.
+     */
+    function spawnCpuPiece() {
+      var type  = cpuState.nextPieceType;
+      var pos   = getSpawnPos(type);
+      var shape = getShape(type, 0);
+
+      cpuState.currentPiece = { type: type, rotState: 0, row: pos.row, col: pos.col };
+      cpuState.nextPieceType = randomPieceType();
+      updateCpuNextPiece();
+
+      /* 게임 오버 감지 */
+      if (!isValidPosition(cpuState.board, shape, pos.row, pos.col)) {
+        cpuState.isRunning = false;
+        clearInterval(cpuState.moveTimer);
+        cpuState.moveTimer = null;
+        console.log('[CPU] Topped out — game over for CPU');
+        return;
+      }
+
+      /* 최적 목표 계산 */
+      cpuState.target = findBestMove(cpuState.board, type);
+    }
+
+    /* ---- AI 이동 단계 ---- */
+
+    /**
+     * AI_MOVE_INTERVAL(250ms)마다 호출되는 단계 함수.
+     * 우선순위: ① 목표 회전 ② 목표 열 이동 ③ 아래로 낙하 / 락
+     * 각 호출마다 한 가지 동작만 수행해 "사람처럼 보이는" 단계적 이동을 구현한다.
+     */
+    function aiMoveStep() {
+      if (!cpuState.isRunning || !cpuState.currentPiece) return;
+
+      var piece  = cpuState.currentPiece;
+      var target = cpuState.target;
+
+      /* ① 목표 회전 상태에 도달하지 않았으면 시계방향 회전 1회 */
+      if (piece.rotState !== target.rotState) {
+        var rotated = tryRotate(cpuState.board, piece, 1);
+        if (rotated) {
+          cpuState.currentPiece = rotated;
+        } else {
+          /* 회전 불가 → 목표 재설정 */
+          cpuState.target = findBestMove(cpuState.board, piece.type);
+        }
+        renderCpuBoard();
+        return;
+      }
+
+      var shape = getShape(piece.type, piece.rotState);
+
+      /* ② 목표 열 방향으로 한 칸 이동 */
+      if (piece.col < target.col) {
+        if (isValidPosition(cpuState.board, shape, piece.row, piece.col + 1)) {
+          piece.col++;
+        } else {
+          /* 벽/블록에 막힘 → 현재 열로 목표 재조정 */
+          cpuState.target = { rotState: target.rotState, col: piece.col };
+        }
+        renderCpuBoard();
+        return;
+      }
+
+      if (piece.col > target.col) {
+        if (isValidPosition(cpuState.board, shape, piece.row, piece.col - 1)) {
+          piece.col--;
+        } else {
+          cpuState.target = { rotState: target.rotState, col: piece.col };
+        }
+        renderCpuBoard();
+        return;
+      }
+
+      /* ③ 위치 정렬 완료 — 한 칸 아래로 낙하 */
+      if (isValidPosition(cpuState.board, shape, piece.row + 1, piece.col)) {
+        piece.row++;
+      } else {
+        /* 락 처리 */
+        lockPiece(cpuState.board, shape, piece.row, piece.col, piece.type);
+        var lines = clearLines(cpuState.board);
+        cpuState.score += calcScore(lines);
+        updateCpuScore();
+        spawnCpuPiece();
+      }
+
+      renderCpuBoard();
+    }
+
+    /* ---- CPU 게임 시작 ---- */
+
+    /**
+     * CPU 보드를 초기화하고 AI 루프를 시작한다.
+     */
+    function startCpuGame() {
+      if (cpuState.moveTimer) {
+        clearInterval(cpuState.moveTimer);
+        cpuState.moveTimer = null;
+      }
+
+      cpuState.board          = createEmptyBoard();
+      cpuState.score          = 0;
+      cpuState.isRunning      = true;
+      cpuState.target         = null;
+      cpuState.pendingGarbage = 0;
+      cpuState.nextPieceType  = randomPieceType();
+
+      updateCpuScore();
+      spawnCpuPiece();
+      renderCpuBoard();
+
+      cpuState.moveTimer = setInterval(aiMoveStep, AI_MOVE_INTERVAL);
+      console.log('[CPU] AI loop started (interval=' + AI_MOVE_INTERVAL + 'ms).');
     }
   </script>
 
