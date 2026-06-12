@@ -423,7 +423,7 @@
     /* --- 이벤트 바인딩 --- */
     document.getElementById('btn-start').addEventListener('click', function () {
       transitionTo(STATE.GAME);
-      startDemoRender();
+      startGame();
     });
 
     /* =====================================================
@@ -617,70 +617,386 @@
       });
     }
 
+    /* =====================================================
+       grain-3: 테트로미노 데이터 — SRS 회전 테이블
+       SHAPES[type][rotState] = 2D 배열 (0=빈칸, 1=블록)
+       회전 공식(CW): new_r = c, new_c = (size-1) - r
+    ===================================================== */
+
+    var PIECE_TYPES_LIST = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+
+    var SHAPES = {
+      I: [
+        [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+        [[0,0,1,0],[0,0,1,0],[0,0,1,0],[0,0,1,0]],
+        [[0,0,0,0],[0,0,0,0],[1,1,1,1],[0,0,0,0]],
+        [[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]],
+      ],
+      O: [
+        [[1,1],[1,1]],
+        [[1,1],[1,1]],
+        [[1,1],[1,1]],
+        [[1,1],[1,1]],
+      ],
+      T: [
+        [[0,1,0],[1,1,1],[0,0,0]],
+        [[0,1,0],[0,1,1],[0,1,0]],
+        [[0,0,0],[1,1,1],[0,1,0]],
+        [[0,1,0],[1,1,0],[0,1,0]],
+      ],
+      S: [
+        [[0,1,1],[1,1,0],[0,0,0]],
+        [[0,1,0],[0,1,1],[0,0,1]],
+        [[0,0,0],[0,1,1],[1,1,0]],
+        [[1,0,0],[1,1,0],[0,1,0]],
+      ],
+      Z: [
+        [[1,1,0],[0,1,1],[0,0,0]],
+        [[0,0,1],[0,1,1],[0,1,0]],
+        [[0,0,0],[1,1,0],[0,1,1]],
+        [[0,1,0],[1,1,0],[1,0,0]],
+      ],
+      J: [
+        [[1,0,0],[1,1,1],[0,0,0]],
+        [[0,1,1],[0,1,0],[0,1,0]],
+        [[0,0,0],[1,1,1],[0,0,1]],
+        [[0,1,0],[0,1,0],[1,1,0]],
+      ],
+      L: [
+        [[0,0,1],[1,1,1],[0,0,0]],
+        [[0,1,0],[0,1,0],[0,1,1]],
+        [[0,0,0],[1,1,1],[1,0,0]],
+        [[1,1,0],[0,1,0],[0,1,0]],
+      ],
+    };
+
     /**
-     * 더미 데이터로 두 캔버스를 렌더링해 grain-2 Done 조건을 검증한다.
+     * SRS 벽 킥 테이블 — JLSTZ 피스
+     * [dcol, drow] (drow 양수 = 아래방향)
+     * SRS 원본 (x,y) 기준 y-up → drow = -y 변환
      */
-    function startDemoRender() {
-      var ctxPlayer = document.getElementById('canvas-player').getContext('2d');
-      var ctxCpu    = document.getElementById('canvas-cpu').getContext('2d');
-      var ctxNextP  = document.getElementById('next-player').getContext('2d');
-      var ctxNextC  = document.getElementById('next-cpu').getContext('2d');
+    var KICKS_JLSTZ = {
+      '0_1': [[ 0, 0], [-1, 0], [-1,-1], [ 0, 2], [-1, 2]],
+      '1_0': [[ 0, 0], [ 1, 0], [ 1, 1], [ 0,-2], [ 1,-2]],
+      '1_2': [[ 0, 0], [ 1, 0], [ 1, 1], [ 0,-2], [ 1,-2]],
+      '2_1': [[ 0, 0], [-1, 0], [-1,-1], [ 0, 2], [-1, 2]],
+      '2_3': [[ 0, 0], [ 1, 0], [ 1,-1], [ 0, 2], [ 1, 2]],
+      '3_2': [[ 0, 0], [-1, 0], [-1, 1], [ 0,-2], [-1,-2]],
+      '3_0': [[ 0, 0], [-1, 0], [-1, 1], [ 0,-2], [-1,-2]],
+      '0_3': [[ 0, 0], [ 1, 0], [ 1,-1], [ 0, 2], [ 1, 2]],
+    };
 
-      /* ── 더미 보드 (플레이어): 하단 3행 부분적으로 채움 ── */
-      var playerBoard = createEmptyBoard();
-      var fillRows = [
-        { row: 19, cols: [0,1,2,3,4,6,7,8], type: 'I' },
-        { row: 18, cols: [0,1,2,3,5,6,7],   type: 'J' },
-        { row: 17, cols: [1,2,4,5,6],        type: 'L' },
-        { row: 16, cols: [0,3,4],             type: 'O' },
-      ];
-      fillRows.forEach(function (spec) {
-        spec.cols.forEach(function (c) {
-          playerBoard[spec.row][c] = spec.type;
-        });
-      });
+    /** SRS 벽 킥 테이블 — I 피스 */
+    var KICKS_I = {
+      '0_1': [[ 0, 0], [-2, 0], [ 1, 0], [-2, 1], [ 1,-2]],
+      '1_0': [[ 0, 0], [ 2, 0], [-1, 0], [ 2,-1], [-1, 2]],
+      '1_2': [[ 0, 0], [-1, 0], [ 2, 0], [-1,-2], [ 2, 1]],
+      '2_1': [[ 0, 0], [ 1, 0], [-2, 0], [ 1, 2], [-2,-1]],
+      '2_3': [[ 0, 0], [ 2, 0], [-1, 0], [ 2,-1], [-1, 2]],
+      '3_2': [[ 0, 0], [-2, 0], [ 1, 0], [-2, 1], [ 1,-2]],
+      '3_0': [[ 0, 0], [ 1, 0], [-2, 0], [ 1, 2], [-2,-1]],
+      '0_3': [[ 0, 0], [-1, 0], [ 2, 0], [-1,-2], [ 2, 1]],
+    };
 
-      /* ── 더미 보드 (CPU): 방해 블록 포함 ── */
-      var cpuBoard = createEmptyBoard();
-      [19, 18].forEach(function (row) {
-        for (var c = 0; c < COLS; c++) {
-          cpuBoard[row][c] = (c === 3) ? null : 'G';   /* 가비지 라인 (구멍 1개) */
+    /* =====================================================
+       grain-3: 순수 로직 함수 (사이드이펙트 없음)
+    ===================================================== */
+
+    /** rotState에 해당하는 형태 배열을 반환한다. */
+    function getShape(type, rotState) {
+      return SHAPES[type][rotState];
+    }
+
+    /**
+     * 피스 타입별 스폰 위치.
+     * I: row=-1 (활성 셀이 shape[1]에 있으므로 board row 0에 표시)
+     * O: col=4 (2셀 폭, 10칸 보드 중앙)
+     * 나머지: col=3 (3셀 폭, 좌측 편중 중앙)
+     */
+    function getSpawnPos(type) {
+      if (type === 'I') return { row: -1, col: 3 };
+      if (type === 'O') return { row:  0, col: 4 };
+      return { row: 0, col: 3 };
+    }
+
+    /**
+     * 주어진 위치에 형태가 유효한지 검사 (벽·바닥·기존블록 충돌).
+     * row < 0 영역(보드 위 여분)은 빈칸으로 취급한다.
+     */
+    function isValidPosition(board, shape, row, col) {
+      for (var r = 0; r < shape.length; r++) {
+        for (var c = 0; c < shape[r].length; c++) {
+          if (!shape[r][c]) continue;
+          var br = row + r;
+          var bc = col + c;
+          if (bc < 0 || bc >= COLS) return false;
+          if (br >= ROWS) return false;
+          if (br >= 0 && board[br][bc] !== null) return false;
         }
-      });
-      cpuBoard[17][2] = 'T';
-      cpuBoard[17][3] = 'T';
-      cpuBoard[17][5] = 'Z';
-      cpuBoard[16][4] = 'S';
-      cpuBoard[16][5] = 'S';
+      }
+      return true;
+    }
 
-      drawBoard(ctxPlayer, playerBoard);
-      drawBoard(ctxCpu,    cpuBoard);
+    /** 현재 피스를 보드에 고정(lock)한다. */
+    function lockPiece(board, shape, row, col, type) {
+      for (var r = 0; r < shape.length; r++) {
+        for (var c = 0; c < shape[r].length; c++) {
+          if (!shape[r][c]) continue;
+          var br = row + r;
+          var bc = col + c;
+          if (br >= 0 && br < ROWS && bc >= 0 && bc < COLS) {
+            board[br][bc] = type;
+          }
+        }
+      }
+    }
 
-      /* ── 활성 피스 (T피스) + 고스트 ── */
-      var tShape = [
-        [0, 1, 0],
-        [1, 1, 1],
-      ];
-      var tCol = 3, tRow = 5;
-      /* 고스트: 착지 행 계산 (더미) */
-      var ghostRow = 14;
-      drawGhost(ctxPlayer, tShape, tCol, ghostRow, 'T');
-      drawPiece(ctxPlayer, tShape, tCol, tRow, 'T');
+    /**
+     * 꽉 찬 줄을 제거하고 빈 줄을 상단에 추가한다.
+     * @returns {number} 제거된 줄 수
+     */
+    function clearLines(board) {
+      var linesCleared = 0;
+      var r = ROWS - 1;
+      while (r >= 0) {
+        var full = true;
+        for (var c = 0; c < COLS; c++) {
+          if (board[r][c] === null) { full = false; break; }
+        }
+        if (full) {
+          board.splice(r, 1);
+          board.unshift(Array(COLS).fill(null));
+          linesCleared++;
+          /* r 유지: splice 후 같은 인덱스에 이전 r-1 행이 들어옴 */
+        } else {
+          r--;
+        }
+      }
+      return linesCleared;
+    }
 
-      /* CPU 활성 피스 (I피스) */
-      var iShape = [[1, 1, 1, 1]];
-      var iCol = 3, iRow = 3;
-      var iGhostRow = 15;
-      drawGhost(ctxCpu, iShape, iCol, iGhostRow, 'I');
-      drawPiece(ctxCpu, iShape, iCol, iRow, 'I');
+    /**
+     * 제거된 줄 수에 따른 점수 반환.
+     * 1줄=100, 2줄=300, 3줄=500, 4줄=800
+     */
+    function calcScore(lines) {
+      return [0, 100, 300, 500, 800][Math.min(lines, 4)];
+    }
 
-      /* ── Next Piece Preview ── */
-      var nextPlayerPiece = { type: 'O', grid: [[1,1],[1,1]] };
-      var nextCpuPiece    = { type: 'S', grid: [[0,1,1],[1,1,0]] };
-      drawNextPiece(ctxNextP, nextPlayerPiece);
-      drawNextPiece(ctxNextC, nextCpuPiece);
+    /** 고스트 피스의 착지 행을 계산한다. */
+    function calcGhostRow(board, shape, row, col) {
+      var g = row;
+      while (isValidPosition(board, shape, g + 1, col)) g++;
+      return g;
+    }
 
-      console.log('[Render] Demo render complete — player + cpu boards drawn with ghost pieces.');
+    /**
+     * SRS 벽 킥을 포함해 회전을 시도한다.
+     * @param {number} dir  1=시계방향, -1=반시계방향
+     * @returns {object|null} 성공 시 새 피스 상태, 실패 시 null
+     */
+    function tryRotate(board, piece, dir) {
+      var newRot = ((piece.rotState + dir) % 4 + 4) % 4;
+      var newShape = getShape(piece.type, newRot);
+      var key = piece.rotState + '_' + newRot;
+      var kicks;
+      if (piece.type === 'O') {
+        kicks = [[0, 0]];
+      } else if (piece.type === 'I') {
+        kicks = KICKS_I[key] || [[0, 0]];
+      } else {
+        kicks = KICKS_JLSTZ[key] || [[0, 0]];
+      }
+      for (var i = 0; i < kicks.length; i++) {
+        var dc = kicks[i][0];
+        var dr = kicks[i][1];
+        if (isValidPosition(board, newShape, piece.row + dr, piece.col + dc)) {
+          return { type: piece.type, rotState: newRot,
+                   row: piece.row + dr, col: piece.col + dc };
+        }
+      }
+      return null;
+    }
+
+    /** 랜덤 피스 타입 반환 */
+    function randomPieceType() {
+      return PIECE_TYPES_LIST[Math.floor(Math.random() * PIECE_TYPES_LIST.length)];
+    }
+
+    /** 새 피스 상태 객체 생성 */
+    function spawnPiece(type) {
+      var pos = getSpawnPos(type);
+      return { type: type, rotState: 0, row: pos.row, col: pos.col };
+    }
+
+    /* =====================================================
+       grain-3: 게임 상태 & 루프 — 플레이어 보드 전용
+       CPU 보드는 grain-4에서 연결
+    ===================================================== */
+
+    var FALL_INTERVAL = 800; /* ms 단위 자동 낙하 간격 */
+
+    var playerState = {
+      board:          null,
+      currentPiece:   null,
+      nextPieceType:  null,
+      score:          0,
+      isRunning:      false,
+      lastTime:       0,
+      dropAccum:      0,
+      animId:         null,
+    };
+
+    function updatePlayerScore() {
+      document.getElementById('score-player').textContent = playerState.score;
+    }
+
+    function updatePlayerNextPiece() {
+      var ctx  = document.getElementById('next-player').getContext('2d');
+      var type = playerState.nextPieceType;
+      drawNextPiece(ctx, { type: type, grid: SHAPES[type][0] });
+    }
+
+    /** 플레이어 보드 전체 렌더링 — grain-2 함수만 호출 */
+    function renderPlayerBoard() {
+      var ctx   = document.getElementById('canvas-player').getContext('2d');
+      var piece = playerState.currentPiece;
+      var shape = getShape(piece.type, piece.rotState);
+      var ghost = calcGhostRow(playerState.board, shape, piece.row, piece.col);
+      drawBoard(ctx, playerState.board);
+      drawGhost(ctx, shape, piece.col, ghost, piece.type);
+      drawPiece(ctx, shape, piece.col, piece.row, piece.type);
+    }
+
+    /**
+     * 피스를 한 칸 아래로 이동하거나 락한다.
+     * 락 시 라인 클리어와 다음 피스 생성을 처리한다.
+     */
+    function stepPlayerDown() {
+      var piece = playerState.currentPiece;
+      var shape = getShape(piece.type, piece.rotState);
+      if (isValidPosition(playerState.board, shape, piece.row + 1, piece.col)) {
+        piece.row++;
+      } else {
+        lockPiece(playerState.board, shape, piece.row, piece.col, piece.type);
+        var lines = clearLines(playerState.board);
+        playerState.score += calcScore(lines);
+        updatePlayerScore();
+        playerState.currentPiece = spawnPiece(playerState.nextPieceType);
+        playerState.nextPieceType = randomPieceType();
+        updatePlayerNextPiece();
+      }
+    }
+
+    /**
+     * requestAnimationFrame 기반 게임 루프.
+     * 경과 시간을 누적해 FALL_INTERVAL마다 한 단계 낙하한다.
+     */
+    function gameLoop(timestamp) {
+      if (!playerState.isRunning) return;
+      if (playerState.lastTime === 0) playerState.lastTime = timestamp;
+      var dt = timestamp - playerState.lastTime;
+      playerState.lastTime = timestamp;
+      if (dt > 200) dt = 200; /* 탭 전환 후 큰 점프 방지 */
+      playerState.dropAccum += dt;
+      if (playerState.dropAccum >= FALL_INTERVAL) {
+        playerState.dropAccum -= FALL_INTERVAL;
+        stepPlayerDown();
+      }
+      renderPlayerBoard();
+      playerState.animId = requestAnimationFrame(gameLoop);
+    }
+
+    /* =====================================================
+       grain-3: 키보드 입력
+    ===================================================== */
+    document.addEventListener('keydown', function (e) {
+      if (!playerState.isRunning) return;
+
+      var piece   = playerState.currentPiece;
+      var shape   = getShape(piece.type, piece.rotState);
+      var handled = true;
+      var rotated, ghost, lines;
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          if (isValidPosition(playerState.board, shape, piece.row, piece.col - 1)) {
+            piece.col--;
+          }
+          break;
+        case 'ArrowRight':
+          if (isValidPosition(playerState.board, shape, piece.row, piece.col + 1)) {
+            piece.col++;
+          }
+          break;
+        case 'ArrowDown': /* 소프트 드롭 */
+          if (isValidPosition(playerState.board, shape, piece.row + 1, piece.col)) {
+            piece.row++;
+            playerState.dropAccum = 0;
+          }
+          break;
+        case 'ArrowUp': /* 시계방향 회전 */
+          rotated = tryRotate(playerState.board, piece, 1);
+          if (rotated) playerState.currentPiece = rotated;
+          break;
+        case ' ': /* 하드 드롭 */
+          ghost = calcGhostRow(playerState.board, shape, piece.row, piece.col);
+          piece.row = ghost;
+          lockPiece(playerState.board, shape, piece.row, piece.col, piece.type);
+          lines = clearLines(playerState.board);
+          playerState.score += calcScore(lines);
+          updatePlayerScore();
+          playerState.currentPiece = spawnPiece(playerState.nextPieceType);
+          playerState.nextPieceType = randomPieceType();
+          updatePlayerNextPiece();
+          playerState.dropAccum = 0;
+          break;
+        default:
+          handled = false;
+      }
+
+      if (handled) {
+        e.preventDefault();
+        renderPlayerBoard();
+      }
+    });
+
+    /* =====================================================
+       grain-3: 게임 시작
+    ===================================================== */
+
+    /**
+     * 게임을 초기화하고 플레이어 루프를 시작한다.
+     * CPU 보드는 빈 상태로 유지 (grain-4에서 연결).
+     */
+    function startGame() {
+      if (playerState.animId) {
+        cancelAnimationFrame(playerState.animId);
+        playerState.animId = null;
+      }
+
+      playerState.board         = createEmptyBoard();
+      playerState.nextPieceType = randomPieceType();
+      playerState.currentPiece  = spawnPiece(randomPieceType());
+      playerState.score         = 0;
+      playerState.isRunning     = true;
+      playerState.lastTime      = 0;
+      playerState.dropAccum     = 0;
+
+      updatePlayerScore();
+      updatePlayerNextPiece();
+
+      /* CPU 보드: 빈 상태 (grain-4 대기) */
+      var ctxCpu = document.getElementById('canvas-cpu').getContext('2d');
+      drawBoard(ctxCpu, createEmptyBoard());
+
+      /* CPU Next 캔버스: 빈 상태 */
+      var ctxNextC = document.getElementById('next-cpu').getContext('2d');
+      ctxNextC.fillStyle = BG_CELL;
+      ctxNextC.fillRect(0, 0, NEXT_SIZE * NEXT_CELL, NEXT_SIZE * NEXT_CELL);
+
+      console.log('[Game] Player game loop started.');
+      playerState.animId = requestAnimationFrame(gameLoop);
     }
   </script>
 
