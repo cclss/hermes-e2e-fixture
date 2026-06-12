@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>테트리스 대전</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    /* =====================================================
+       Design Tokens — CSS Custom Properties
+       Token Group 참조: design-spec/token-groups/
+    ===================================================== */
+    :root {
+      /* Color — 배경 (color/base) */
+      --color-bg-primary: #0d0d1a;
+      --color-bg-surface: #1a1a2e;
+      --color-bg-panel: #16213e;
+
+      /* Color — 텍스트 (color/base) */
+      --color-text-primary: #e0e0ff;
+      --color-text-accent: #00f5ff;
+      --color-neon-title: #ff00ff;
+
+      /* Color — 버튼 (color/base) */
+      --color-btn-bg: #1a1a2e;
+      --color-btn-border: #00f5ff;
+      --color-btn-text: #00f5ff;
+      --color-btn-hover-bg: #00f5ff;
+      --color-btn-hover-text: #0d0d1a;
+
+      /* Color — 테트로미노 7종 (color/base) */
+      --color-tetromino-i: #00f5ff;
+      --color-tetromino-o: #ffd700;
+      --color-tetromino-t: #b366ff;
+      --color-tetromino-s: #00ff88;
+      --color-tetromino-z: #ff4444;
+      --color-tetromino-j: #4488ff;
+      --color-tetromino-l: #ff8c00;
+
+      /* Typography (typography/base) */
+      --font-family-game: 'Press Start 2P', monospace;
+      --font-size-title: 2.5rem;
+      --font-size-subtitle: 1.5rem;
+      --font-size-body: 1rem;
+      --font-size-sm: 0.75rem;
+      --font-weight-normal: 400;
+      --font-weight-bold: 700;
+      --line-height-tight: 1.2;
+      --line-height-normal: 1.5;
+
+      /* Spacing (spacing/base) */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 48px;
+      --space-2xl: 64px;
+    }
+
+    /* =====================================================
+       Reset & Base
+    ===================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background-color: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      font-family: var(--font-family-game);
+      font-size: var(--font-size-body);
+      line-height: var(--line-height-normal);
+    }
+
+    /* =====================================================
+       Screen System — intro / game / gameover
+    ===================================================== */
+    .screen {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .screen.hidden {
+      display: none;
+    }
+
+    /* =====================================================
+       Intro Screen (IntroScreen Component)
+       Token Group 참조: color/base, typography/base, spacing/base
+    ===================================================== */
+    #screen-intro {
+      background-color: var(--color-bg-primary);
+      gap: var(--space-xl);
+    }
+
+    /* --- Title --- */
+    @keyframes glow-pulse {
+      0%, 100% {
+        color: var(--color-neon-title);
+        text-shadow:
+          0 0 8px var(--color-neon-title),
+          0 0 20px var(--color-neon-title),
+          0 0 40px var(--color-neon-title),
+          0 0 80px var(--color-neon-title);
+      }
+      50% {
+        color: var(--color-text-accent);
+        text-shadow:
+          0 0 6px var(--color-text-accent),
+          0 0 14px var(--color-text-accent),
+          0 0 30px var(--color-text-accent);
+      }
+    }
+
+    .intro-title {
+      font-family: var(--font-family-game);
+      font-size: var(--font-size-title);
+      font-weight: var(--font-weight-bold);
+      line-height: var(--line-height-tight);
+      text-align: center;
+      animation: glow-pulse 2.4s ease-in-out infinite;
+      letter-spacing: 0.05em;
+      padding: 0 var(--space-md);
+    }
+
+    /* --- Start Button --- */
+    @keyframes btn-border-glow {
+      0%, 100% {
+        box-shadow:
+          0 0 6px var(--color-btn-border),
+          inset 0 0 6px transparent;
+      }
+      50% {
+        box-shadow:
+          0 0 16px var(--color-btn-border),
+          inset 0 0 4px rgba(0, 245, 255, 0.08);
+      }
+    }
+
+    .btn-start {
+      font-family: var(--font-family-game);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-normal);
+      color: var(--color-btn-text);
+      background-color: var(--color-btn-bg);
+      border: 2px solid var(--color-btn-border);
+      padding: var(--space-md) var(--space-xl);
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.1s ease;
+      animation: btn-border-glow 2.4s ease-in-out infinite;
+    }
+
+    .btn-start:hover {
+      background-color: var(--color-btn-hover-bg);
+      color: var(--color-btn-hover-text);
+      transform: scale(1.04);
+      box-shadow:
+        0 0 24px var(--color-btn-border),
+        0 0 48px rgba(0, 245, 255, 0.4);
+      animation: none;
+    }
+
+    .btn-start:active {
+      transform: scale(0.98);
+    }
+
+    /* =====================================================
+       Game Screen (placeholder — grain-2에서 구현)
+    ===================================================== */
+    #screen-game {
+      background-color: var(--color-bg-primary);
+      justify-content: flex-start;
+      padding-top: var(--space-xl);
+    }
+
+    .game-placeholder {
+      color: var(--color-text-accent);
+      font-size: var(--font-size-sm);
+      opacity: 0.5;
+      text-align: center;
+    }
+
+    /* =====================================================
+       Game Over Screen (placeholder — grain-N에서 구현)
+    ===================================================== */
+    #screen-gameover {
+      background-color: var(--color-bg-primary);
+    }
+
+    .gameover-placeholder {
+      color: var(--color-text-accent);
+      font-size: var(--font-size-sm);
+      opacity: 0.5;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =====================================================
+       Intro Screen
+  ===================================================== -->
+  <div id="screen-intro" class="screen">
+    <h1 class="intro-title">테트리스 대전</h1>
+    <button id="btn-start" class="btn-start">게임 시작</button>
+  </div>
+
+  <!-- =====================================================
+       Game Screen (grain-2에서 내용 채움)
+  ===================================================== -->
+  <div id="screen-game" class="screen hidden">
+    <p class="game-placeholder">[ 게임 화면 — 준비 중 ]</p>
+  </div>
+
+  <!-- =====================================================
+       Game Over Screen (grain-N에서 내용 채움)
+  ===================================================== -->
+  <div id="screen-gameover" class="screen hidden">
+    <p class="gameover-placeholder">[ 게임 오버 화면 — 준비 중 ]</p>
+  </div>
+
+  <script>
+    /* =====================================================
+       화면 상태 전환 아키텍처
+       상태: intro → game → gameover
+    ===================================================== */
+    const STATE = Object.freeze({
+      INTRO: 'intro',
+      GAME: 'game',
+      GAMEOVER: 'gameover',
+    });
+
+    let currentState = STATE.INTRO;
+
+    /**
+     * 화면 전환 함수.
+     * 모든 screen을 숨기고 target screen만 표시한다.
+     * @param {string} state - STATE 상수값
+     */
+    function transitionTo(state) {
+      document.querySelectorAll('.screen').forEach(function (el) {
+        el.classList.add('hidden');
+      });
+
+      var target = document.getElementById('screen-' + state);
+      if (target) {
+        target.classList.remove('hidden');
+      }
+
+      currentState = state;
+      console.log('[State] → ' + state);
+    }
+
+    /* --- 이벤트 바인딩 --- */
+    document.getElementById('btn-start').addEventListener('click', function () {
+      transitionTo(STATE.GAME);
+    });
+  </script>
+
+</body>
+</html>
