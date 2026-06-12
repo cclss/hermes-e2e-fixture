@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>자유게시판</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 앱 헤더 -->
+  <header class="app-header">
+    <button class="back-btn" id="backBtn" aria-label="뒤로 가기">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <h1 class="header-title" id="headerTitle">자유게시판</h1>
+    <button class="write-action-btn" id="writeActionBtn">글쓰기</button>
+  </header>
+
+  <!-- 게시글 목록 뷰 -->
+  <main id="listView" class="view active">
+    <div class="post-list" id="postList">
+      <!-- JS로 렌더링 -->
+    </div>
+    <div class="empty-state" id="emptyState">
+      <p class="empty-text">아직 게시글이 없어요</p>
+      <p class="empty-sub">첫 번째 글을 남겨보세요 ✍️</p>
+    </div>
+  </main>
+
+  <!-- 게시글 작성 뷰 -->
+  <main id="writeView" class="view">
+    <form class="write-form" id="writeForm" autocomplete="off">
+      <div class="form-field">
+        <input
+          class="form-input"
+          id="titleInput"
+          type="text"
+          placeholder="제목을 입력하세요"
+          maxlength="100"
+          required
+        >
+      </div>
+      <div class="form-field">
+        <textarea
+          class="form-textarea"
+          id="contentInput"
+          placeholder="무슨 생각을 하고 있나요?"
+          maxlength="2000"
+          required
+        ></textarea>
+        <span class="char-count" id="charCount">0 / 2000</span>
+      </div>
+      <button class="btn btn-primary btn-full" type="submit">등록하기</button>
+    </form>
+  </main>
+
+  <!-- 게시글 상세 뷰 -->
+  <main id="detailView" class="view">
+    <article class="post-detail" id="postDetail">
+      <!-- JS로 렌더링 -->
+    </article>
+
+    <div class="divider"></div>
+
+    <section class="comments-section">
+      <h2 class="comments-title" id="commentCount">댓글 0</h2>
+      <div class="comment-list" id="commentList">
+        <!-- JS로 렌더링 -->
+      </div>
+      <form class="comment-form" id="commentForm" autocomplete="off">
+        <input
+          class="comment-input"
+          id="commentInput"
+          type="text"
+          placeholder="댓글을 입력하세요"
+          maxlength="500"
+          required
+        >
+        <button class="btn btn-sm btn-primary" type="submit">등록</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
