@@ -2,29 +2,29 @@
 
 /* Color */
 :root {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-raised: #273449;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f1f5f9;
   --color-primary: #3b82f6;
   --color-primary-hover: #2563eb;
-  --color-win: #22c55e;
-  --color-draw: #f59e0b;
-  --color-lose: #ef4444;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-border: #334155;
-  --color-btn-default-bg: #1e293b;
-  --color-btn-default-border: #334155;
-  --color-btn-hover-bg: #273449;
+  --color-win: #16a34a;
+  --color-draw: #d97706;
+  --color-lose: #dc2626;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-border: #e2e8f0;
+  --color-btn-default-bg: #ffffff;
+  --color-btn-default-border: #e2e8f0;
+  --color-btn-hover-bg: #f1f5f9;
   --color-btn-hover-border: #3b82f6;
   --color-difficulty-active-bg: #3b82f6;
-  --color-difficulty-inactive-bg: #1e293b;
-  --color-win-surface: rgba(34, 197, 94, 0.15);
-  --color-win-border: rgba(34, 197, 94, 0.3);
-  --color-lose-surface: rgba(239, 68, 68, 0.15);
-  --color-lose-border: rgba(239, 68, 68, 0.3);
-  --color-draw-surface: rgba(245, 158, 11, 0.15);
-  --color-draw-border: rgba(245, 158, 11, 0.3);
+  --color-difficulty-inactive-bg: #ffffff;
+  --color-win-surface: rgba(22, 163, 74, 0.08);
+  --color-win-border: rgba(22, 163, 74, 0.20);
+  --color-lose-surface: rgba(220, 38, 38, 0.08);
+  --color-lose-border: rgba(220, 38, 38, 0.20);
+  --color-draw-surface: rgba(217, 119, 6, 0.08);
+  --color-draw-border: rgba(217, 119, 6, 0.20);
 }
 
 /* Typography */
@@ -65,10 +65,10 @@
 
 /* Shadow */
 :root {
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-btn-hover: 0 0 0 3px rgba(59, 130, 246, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-btn-hover: 0 0 0 3px rgba(59, 130, 246, 0.18);
 }
 
 /* Transition */
