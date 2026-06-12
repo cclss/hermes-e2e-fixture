@@ -181,19 +181,127 @@
     }
 
     /* =====================================================
-       Game Screen (placeholder — grain-2에서 구현)
+       Game Screen — GameBoard + NextPiecePreview
+       Token Group 참조: color/base, typography/base, spacing/base
     ===================================================== */
     #screen-game {
       background-color: var(--color-bg-primary);
-      justify-content: flex-start;
-      padding-top: var(--space-xl);
+      justify-content: center;
+      align-items: center;
+      padding: var(--space-lg) var(--space-md);
+      gap: var(--space-lg);
     }
 
-    .game-placeholder {
-      color: var(--color-text-accent);
+    /* --- Game Arena: 두 보드 나란히 --- */
+    .game-arena {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--space-xl);
+    }
+
+    /* --- VS Divider --- */
+    .vs-divider {
+      font-family: var(--font-family-game);
+      font-size: var(--font-size-subtitle);
+      color: var(--color-neon-title);
+      text-shadow:
+        0 0 8px var(--color-neon-title),
+        0 0 20px var(--color-neon-title);
+      align-self: center;
+      letter-spacing: 0.1em;
+    }
+
+    /* --- Board Section: 캔버스 + 정보 패널 --- */
+    .board-section {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--space-md);
+    }
+
+    /* CPU 보드는 정보 패널이 왼쪽에 */
+    .board-section--cpu {
+      flex-direction: row-reverse;
+    }
+
+    /* --- Board Side: 레이블 + 캔버스 --- */
+    .board-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    /* --- 보드 레이블 (PLAYER / CPU) --- */
+    .board-label {
+      font-family: var(--font-family-game);
       font-size: var(--font-size-sm);
-      opacity: 0.5;
-      text-align: center;
+      color: var(--color-text-accent);
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 6px var(--color-text-accent);
+    }
+
+    /* --- 메인 게임 캔버스 --- */
+    .board-canvas {
+      display: block;
+      border: 2px solid var(--color-text-accent);
+      box-shadow:
+        0 0 10px rgba(0, 245, 255, 0.3),
+        0 0 30px rgba(0, 245, 255, 0.1);
+      background-color: var(--color-bg-surface);
+    }
+
+    /* --- 정보 패널 (NEXT + SCORE) --- */
+    .board-info {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      padding-top: var(--space-lg);
+    }
+
+    /* --- 패널 공통 레이블 --- */
+    .panel-label {
+      font-family: var(--font-family-game);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-accent);
+      letter-spacing: 0.15em;
+      margin-bottom: var(--space-xs);
+      opacity: 0.8;
+    }
+
+    /* --- Next Piece Preview 컨테이너 --- */
+    .next-panel {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--color-bg-panel);
+      border: 1px solid rgba(0, 245, 255, 0.3);
+      padding: var(--space-sm);
+      gap: var(--space-xs);
+    }
+
+    /* --- Next Piece Canvas --- */
+    .next-canvas {
+      display: block;
+      background-color: var(--color-bg-surface);
+    }
+
+    /* --- Score 패널 --- */
+    .score-panel {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--color-bg-panel);
+      border: 1px solid rgba(0, 245, 255, 0.3);
+      padding: var(--space-sm);
+      gap: var(--space-xs);
+      min-width: 120px;
+    }
+
+    .score-value {
+      font-family: var(--font-family-game);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-primary);
+      letter-spacing: 0.05em;
     }
 
     /* =====================================================
@@ -222,10 +330,55 @@
   </div>
 
   <!-- =====================================================
-       Game Screen (grain-2에서 내용 채움)
+       Game Screen — GameBoard (grain-2)
   ===================================================== -->
   <div id="screen-game" class="screen hidden">
-    <p class="game-placeholder">[ 게임 화면 — 준비 중 ]</p>
+    <div class="game-arena">
+
+      <!-- ── 플레이어 보드 ── -->
+      <div class="board-section">
+        <div class="board-side">
+          <div class="board-label">PLAYER</div>
+          <canvas id="canvas-player" class="board-canvas" width="300" height="600"></canvas>
+        </div>
+        <div class="board-info">
+          <!-- NextPiecePreview -->
+          <div class="next-panel">
+            <div class="panel-label">NEXT</div>
+            <canvas id="next-player" class="next-canvas" width="120" height="120"></canvas>
+          </div>
+          <!-- Score -->
+          <div class="score-panel">
+            <div class="panel-label">SCORE</div>
+            <div id="score-player" class="score-value">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VS 구분자 ── -->
+      <div class="vs-divider">VS</div>
+
+      <!-- ── CPU 보드 ── -->
+      <div class="board-section board-section--cpu">
+        <div class="board-side">
+          <div class="board-label">CPU</div>
+          <canvas id="canvas-cpu" class="board-canvas" width="300" height="600"></canvas>
+        </div>
+        <div class="board-info">
+          <!-- NextPiecePreview -->
+          <div class="next-panel">
+            <div class="panel-label">NEXT</div>
+            <canvas id="next-cpu" class="next-canvas" width="120" height="120"></canvas>
+          </div>
+          <!-- Score -->
+          <div class="score-panel">
+            <div class="panel-label">SCORE</div>
+            <div id="score-cpu" class="score-value">0</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- =====================================================
@@ -270,7 +423,265 @@
     /* --- 이벤트 바인딩 --- */
     document.getElementById('btn-start').addEventListener('click', function () {
       transitionTo(STATE.GAME);
+      startDemoRender();
     });
+
+    /* =====================================================
+       Rendering Engine — Canvas 2D (grain-2)
+       GameBoard / NextPiecePreview 렌더링 유틸
+    ===================================================== */
+
+    /* --- 상수 --- */
+    var COLS = 10;
+    var ROWS = 20;
+    var CELL = 30;           // px per cell (main board)
+    var NEXT_CELL = 30;      // px per cell (preview 4×4)
+    var NEXT_SIZE = 4;       // preview grid size
+
+    /* --- 테트로미노 색상 (color/base Token 값 직접 참조) --- */
+    var PIECE_COLORS = {
+      I: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-i').trim() || '#00f5ff',
+      O: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-o').trim() || '#ffd700',
+      T: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-t').trim() || '#b366ff',
+      S: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-s').trim() || '#00ff88',
+      Z: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-z').trim() || '#ff4444',
+      J: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-j').trim() || '#4488ff',
+      L: getComputedStyle(document.documentElement).getPropertyValue('--color-tetromino-l').trim() || '#ff8c00',
+      G: '#444466',          /* 가비지(방해) 블록 */
+    };
+
+    var BG_CELL   = getComputedStyle(document.documentElement).getPropertyValue('--color-bg-surface').trim() || '#1a1a2e';
+    var GRID_LINE = 'rgba(255,255,255,0.04)';
+
+    /**
+     * 단일 셀을 그린다.
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {number} x  - 캔버스 픽셀 x
+     * @param {number} y  - 캔버스 픽셀 y
+     * @param {string} color  - 채우기 색
+     * @param {number} cellSize  - 셀 크기(px)
+     * @param {number} [alpha=1]  - 투명도 (고스트용)
+     */
+    function drawCell(ctx, x, y, color, cellSize, alpha) {
+      var a = (alpha === undefined) ? 1 : alpha;
+      ctx.save();
+      ctx.globalAlpha = a;
+
+      /* 셀 배경 */
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+
+      /* 하이라이트(좌상) */
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x + 1, y + 1, cellSize - 2, 3);
+      ctx.fillRect(x + 1, y + 1, 3, cellSize - 2);
+
+      /* 그림자(우하) */
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(x + 1, y + cellSize - 4, cellSize - 2, 3);
+      ctx.fillRect(x + cellSize - 4, y + 1, 3, cellSize - 2);
+
+      ctx.restore();
+    }
+
+    /**
+     * 보드 배경 + 격자선을 그린다.
+     * @param {CanvasRenderingContext2D} ctx
+     */
+    function drawBackground(ctx) {
+      ctx.fillStyle = BG_CELL;
+      ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
+
+      ctx.strokeStyle = GRID_LINE;
+      ctx.lineWidth = 0.5;
+      for (var c = 0; c <= COLS; c++) {
+        ctx.beginPath();
+        ctx.moveTo(c * CELL, 0);
+        ctx.lineTo(c * CELL, ROWS * CELL);
+        ctx.stroke();
+      }
+      for (var r = 0; r <= ROWS; r++) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * CELL);
+        ctx.lineTo(COLS * CELL, r * CELL);
+        ctx.stroke();
+      }
+    }
+
+    /**
+     * 보드 배열 전체를 렌더링한다.
+     * board[row][col] 은 타입 문자열('I','O',… 또는 null).
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {Array<Array<string|null>>} board  - ROWS × COLS 2D 배열
+     */
+    function drawBoard(ctx, board) {
+      drawBackground(ctx);
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var type = board[r][c];
+          if (type) {
+            drawCell(ctx, c * CELL, r * CELL, PIECE_COLORS[type] || '#ffffff', CELL, 1);
+          }
+        }
+      }
+    }
+
+    /**
+     * 활성 피스를 렌더링한다.
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {Array<Array<number>>} shape  - 피스 형태 (1이면 채움)
+     * @param {number} originCol  - 좌상단 열 인덱스
+     * @param {number} originRow  - 좌상단 행 인덱스
+     * @param {string} type  - 피스 타입 ('I','O',…)
+     * @param {number} [alpha=1]
+     */
+    function drawPiece(ctx, shape, originCol, originRow, type, alpha) {
+      var color = PIECE_COLORS[type] || '#ffffff';
+      var a = (alpha === undefined) ? 1 : alpha;
+      for (var r = 0; r < shape.length; r++) {
+        for (var c = 0; c < shape[r].length; c++) {
+          if (shape[r][c]) {
+            drawCell(
+              ctx,
+              (originCol + c) * CELL,
+              (originRow + r) * CELL,
+              color,
+              CELL,
+              a
+            );
+          }
+        }
+      }
+    }
+
+    /**
+     * 고스트 피스(착지 위치 반투명 미리보기)를 렌더링한다.
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {Array<Array<number>>} shape
+     * @param {number} originCol
+     * @param {number} ghostRow  - 이미 계산된 착지 행
+     * @param {string} type
+     */
+    function drawGhost(ctx, shape, originCol, ghostRow, type) {
+      drawPiece(ctx, shape, originCol, ghostRow, type, 0.22);
+    }
+
+    /**
+     * 다음 블록 미리보기 캔버스를 렌더링한다.
+     * @param {CanvasRenderingContext2D} ctx
+     * @param {Array<Array<number>>} shape
+     * @param {string} type
+     */
+    function drawNextPiece(ctx, shape) {
+      /* 배경 클리어 */
+      ctx.fillStyle = BG_CELL;
+      ctx.fillRect(0, 0, NEXT_SIZE * NEXT_CELL, NEXT_SIZE * NEXT_CELL);
+
+      var type = shape.type || 'I';
+      var grid = shape.grid || shape;
+      var color = PIECE_COLORS[type] || '#ffffff';
+
+      /* 피스를 4×4 중앙에 배치 */
+      var pieceH = grid.length;
+      var pieceW = grid[0].length;
+      var offsetRow = Math.floor((NEXT_SIZE - pieceH) / 2);
+      var offsetCol = Math.floor((NEXT_SIZE - pieceW) / 2);
+
+      for (var r = 0; r < pieceH; r++) {
+        for (var c = 0; c < pieceW; c++) {
+          if (grid[r][c]) {
+            drawCell(
+              ctx,
+              (offsetCol + c) * NEXT_CELL,
+              (offsetRow + r) * NEXT_CELL,
+              color,
+              NEXT_CELL,
+              1
+            );
+          }
+        }
+      }
+    }
+
+    /* =====================================================
+       Demo Render — 더미 데이터로 렌더링 확인 (grain-2)
+       실제 게임 로직 연결 전 렌더링 함수 검증용
+    ===================================================== */
+
+    /**
+     * 빈 10×20 보드 생성.
+     */
+    function createEmptyBoard() {
+      return Array.from({ length: ROWS }, function () {
+        return Array(COLS).fill(null);
+      });
+    }
+
+    /**
+     * 더미 데이터로 두 캔버스를 렌더링해 grain-2 Done 조건을 검증한다.
+     */
+    function startDemoRender() {
+      var ctxPlayer = document.getElementById('canvas-player').getContext('2d');
+      var ctxCpu    = document.getElementById('canvas-cpu').getContext('2d');
+      var ctxNextP  = document.getElementById('next-player').getContext('2d');
+      var ctxNextC  = document.getElementById('next-cpu').getContext('2d');
+
+      /* ── 더미 보드 (플레이어): 하단 3행 부분적으로 채움 ── */
+      var playerBoard = createEmptyBoard();
+      var fillRows = [
+        { row: 19, cols: [0,1,2,3,4,6,7,8], type: 'I' },
+        { row: 18, cols: [0,1,2,3,5,6,7],   type: 'J' },
+        { row: 17, cols: [1,2,4,5,6],        type: 'L' },
+        { row: 16, cols: [0,3,4],             type: 'O' },
+      ];
+      fillRows.forEach(function (spec) {
+        spec.cols.forEach(function (c) {
+          playerBoard[spec.row][c] = spec.type;
+        });
+      });
+
+      /* ── 더미 보드 (CPU): 방해 블록 포함 ── */
+      var cpuBoard = createEmptyBoard();
+      [19, 18].forEach(function (row) {
+        for (var c = 0; c < COLS; c++) {
+          cpuBoard[row][c] = (c === 3) ? null : 'G';   /* 가비지 라인 (구멍 1개) */
+        }
+      });
+      cpuBoard[17][2] = 'T';
+      cpuBoard[17][3] = 'T';
+      cpuBoard[17][5] = 'Z';
+      cpuBoard[16][4] = 'S';
+      cpuBoard[16][5] = 'S';
+
+      drawBoard(ctxPlayer, playerBoard);
+      drawBoard(ctxCpu,    cpuBoard);
+
+      /* ── 활성 피스 (T피스) + 고스트 ── */
+      var tShape = [
+        [0, 1, 0],
+        [1, 1, 1],
+      ];
+      var tCol = 3, tRow = 5;
+      /* 고스트: 착지 행 계산 (더미) */
+      var ghostRow = 14;
+      drawGhost(ctxPlayer, tShape, tCol, ghostRow, 'T');
+      drawPiece(ctxPlayer, tShape, tCol, tRow, 'T');
+
+      /* CPU 활성 피스 (I피스) */
+      var iShape = [[1, 1, 1, 1]];
+      var iCol = 3, iRow = 3;
+      var iGhostRow = 15;
+      drawGhost(ctxCpu, iShape, iCol, iGhostRow, 'I');
+      drawPiece(ctxCpu, iShape, iCol, iRow, 'I');
+
+      /* ── Next Piece Preview ── */
+      var nextPlayerPiece = { type: 'O', grid: [[1,1],[1,1]] };
+      var nextCpuPiece    = { type: 'S', grid: [[0,1,1],[1,1,0]] };
+      drawNextPiece(ctxNextP, nextPlayerPiece);
+      drawNextPiece(ctxNextC, nextCpuPiece);
+
+      console.log('[Render] Demo render complete — player + cpu boards drawn with ghost pieces.');
+    }
   </script>
 
 </body>
