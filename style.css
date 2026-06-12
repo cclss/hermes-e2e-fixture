@@ -103,7 +103,7 @@ input, textarea {
   padding: 0 var(--space-md);
   height: 56px;
   background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: var(--border-width-default) solid var(--border-default);
 }
 
 .back-btn {
@@ -223,7 +223,7 @@ input, textarea {
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.1s;
-  border: 1px solid transparent;
+  border: var(--border-width-default) solid transparent;
 }
 
 .post-card:hover {
@@ -408,7 +408,7 @@ input, textarea {
   gap: var(--space-xs);
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: var(--border-width-default) solid var(--border-default);
 }
 
 .post-detail-author {
@@ -465,7 +465,7 @@ input, textarea {
 /* CommentItem */
 .comment-item {
   padding: var(--space-md) 0;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: var(--border-width-default) solid var(--border-default);
 }
 
 .comment-item:last-child {
@@ -513,7 +513,7 @@ input, textarea {
   bottom: 0;
   background: var(--bg-primary);
   padding-bottom: var(--space-lg);
-  border-top: 1px solid var(--border-default);
+  border-top: var(--border-width-default) solid var(--border-default);
   margin-top: var(--space-md);
 }
 
