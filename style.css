@@ -53,6 +53,10 @@
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
+
+  /* border/base */
+  --border-width-default: 1px;
+  --border-width-input: 1.5px;
 }
 
 /* ===== Reset & Base ===== */
@@ -285,7 +289,7 @@ input, textarea {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-2xs);
   font-size: var(--size-xs);
   color: var(--text-tertiary);
 }
@@ -333,7 +337,7 @@ input, textarea {
 .form-input {
   width: 100%;
   padding: var(--space-md);
-  border: 1.5px solid var(--border-default);
+  border: var(--border-width-input) solid var(--border-default);
   border-radius: var(--radius-md);
   font-size: var(--size-md);
   font-weight: var(--weight-medium);
@@ -357,7 +361,7 @@ input, textarea {
   min-height: 240px;
   padding: var(--space-md);
   padding-bottom: var(--space-2xl);
-  border: 1.5px solid var(--border-default);
+  border: var(--border-width-input) solid var(--border-default);
   border-radius: var(--radius-md);
   font-size: var(--size-md);
   color: var(--text-primary);
@@ -516,7 +520,7 @@ input, textarea {
 .comment-input {
   flex: 1;
   padding: var(--space-xs) var(--space-sm);
-  border: 1.5px solid var(--border-default);
+  border: var(--border-width-input) solid var(--border-default);
   border-radius: var(--radius-full);
   font-size: var(--size-sm);
   color: var(--text-primary);
