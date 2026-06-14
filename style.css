@@ -34,6 +34,7 @@
   --color-danger-hover:       #DC2626;
   --color-danger-active:      #B91C1C;
   --color-danger-focus-ring:  rgba(239, 68, 68, 0.30);
+  --color-danger-bg-subtle:   rgba(239, 68, 68, 0.08);  /* 삭제 버튼 hover 배경 */
 
   /* Borders */
   --color-border-default: #E2E8F0;
@@ -54,6 +55,7 @@
   --space-4:  16px;
   --space-5:  20px;
   --space-6:  24px;
+  --space-7:  28px;
   --space-8:  32px;
   --space-10: 40px;
   --space-12: 48px;
@@ -103,4 +105,273 @@
   --motion-easing-decelerate:  cubic-bezier(0, 0, 0.2, 1);    /* 진입 (천천히 멈춤) */
   --motion-easing-accelerate:  cubic-bezier(0.4, 0, 1, 1);    /* 퇴장 (빠르게 나감) */
 
+
+  /* ==================================================
+   * RADIUS  (grain-2)
+   * 모서리 둥글기 스케일
+   * ================================================== */
+
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-full: 9999px;
+
+
+  /* ==================================================
+   * SHADOW  (grain-2)
+   * 카드·엘리베이션 그림자
+   * ================================================== */
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+
+  /* ==================================================
+   * BORDER  (grain-2)
+   * 테두리 두께
+   * ================================================== */
+
+  --border-width-default:    1px;
+  --border-width-focus-ring: 3px;
+
+}
+
+
+/* =====================================================
+ * TODO LIST APP — Layout & Components
+ * grain-2: HTML5 마크업 & 레이아웃 CSS
+ * ===================================================== */
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Base ── */
+body {
+  font-family: var(--font-family-base);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-normal);
+  min-height: 100vh;
+}
+
+/* ── App Shell ── */
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+/* ── App Header ── */
+.app-header {
+  background-color: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.app-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Todo Form ── */
+.todo-form {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.todo-input {
+  flex: 1;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  outline: none;
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-easing-standard),
+    box-shadow   var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.todo-input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.todo-input:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 var(--border-width-focus-ring) var(--color-accent-focus-ring);
+}
+
+/* ── Add Button ── */
+.btn-add {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-on-accent);
+  background-color: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.btn-add:hover  { background-color: var(--color-accent-hover);  }
+.btn-add:active { background-color: var(--color-accent-active); }
+
+.btn-add:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--border-width-focus-ring) var(--color-accent-focus-ring);
+}
+
+/* ── App Main (list card) ── */
+.app-main {
+  background-color: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+/* ── Todo List ── */
+.todo-list {
+  list-style: none;
+}
+
+/* ── Todo Item ── */
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--border-width-default) solid var(--color-border-default);
+  background-color: var(--color-bg-surface);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+/* ── Todo Item Text ── */
+.todo-item__text {
+  flex: 1;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  word-break: break-word;
+  transition:
+    color           var(--motion-duration-normal) var(--motion-easing-standard),
+    opacity         var(--motion-duration-normal) var(--motion-easing-standard),
+    text-decoration var(--motion-duration-normal) var(--motion-easing-standard);
+}
+
+/* ── Toggle Button ── */
+.btn-toggle {
+  flex-shrink: 0;
+  width: var(--space-7);
+  height: var(--space-7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background-color: transparent;
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    color            var(--motion-duration-fast) var(--motion-easing-standard),
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    border-color     var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.btn-toggle:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.btn-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--border-width-focus-ring) var(--color-accent-focus-ring);
+}
+
+/* ── Delete Button ── */
+.btn-delete {
+  flex-shrink: 0;
+  width: var(--space-7);
+  height: var(--space-7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background-color: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    color            var(--motion-duration-fast) var(--motion-easing-standard),
+    background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    opacity          var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.todo-item:hover .btn-delete,
+.todo-item:focus-within .btn-delete {
+  opacity: 1;
+}
+
+.btn-delete:hover {
+  color: var(--color-danger);
+  background-color: var(--color-danger-bg-subtle);
+}
+
+.btn-delete:active {
+  color: var(--color-danger-active);
+}
+
+.btn-delete:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 var(--border-width-focus-ring) var(--color-danger-focus-ring);
+}
+
+/* ── Done State ── */
+.todo-item.done {
+  background-color: var(--color-bg-completed);
+}
+
+.todo-item.done .todo-item__text {
+  text-decoration: var(--text-decoration-completed);
+  color: var(--color-text-completed);
+  opacity: var(--opacity-completed);
+}
+
+.todo-item.done .btn-toggle {
+  color: var(--color-text-on-accent);
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ── Empty State ── */
+.empty-state {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
 }

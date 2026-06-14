@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>할 일 목록</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <header class="app-header">
+      <h1 class="app-title">할 일 목록</h1>
+      <form class="todo-form" id="todo-form">
+        <input
+          class="todo-input"
+          id="todo-input"
+          type="text"
+          placeholder="새 할 일을 입력하세요..."
+          autocomplete="off"
+          aria-label="새 할 일 입력"
+        >
+        <button class="btn-add" type="submit">추가</button>
+      </form>
+    </header>
+
+    <main class="app-main">
+      <ul class="todo-list" id="todo-list" aria-label="할 일 목록">
+        <!-- 정적 예시 항목 — grain-3에서 JS가 동적으로 대체합니다 -->
+        <li class="todo-item">
+          <button class="btn-toggle" type="button" aria-label="완료 표시">✓</button>
+          <span class="todo-item__text">마트에서 우유 사기</span>
+          <button class="btn-delete" type="button" aria-label="삭제">✕</button>
+        </li>
+        <li class="todo-item done">
+          <button class="btn-toggle" type="button" aria-label="완료 해제">✓</button>
+          <span class="todo-item__text">독서 30분</span>
+          <button class="btn-delete" type="button" aria-label="삭제">✕</button>
+        </li>
+      </ul>
+      <p class="empty-state" id="empty-state" hidden>
+        아직 추가된 할 일이 없습니다.
+      </p>
+    </main>
+
+  </div>
+</body>
+</html>
