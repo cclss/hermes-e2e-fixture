@@ -376,6 +376,19 @@ body {
   line-height: var(--line-height-relaxed);
 }
 
+/* ── Storage Banner ── */
+/* 저장 공간 접근 불가 시 상단에 한 번만 노출되는 인라인 경고 배너 */
+.storage-banner {
+  padding: var(--space-3) var(--space-5);
+  margin-bottom: var(--space-4);
+  background-color: var(--color-danger-bg-subtle);
+  border: var(--border-width-default) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-normal);
+}
+
 
 /* =====================================================
  * TODO LIST APP — Micro-interaction Animations
@@ -418,4 +431,23 @@ body {
   overflow: hidden;
   animation: fadeOut var(--motion-duration-slow) var(--motion-easing-accelerate) both;
   pointer-events: none;
+}
+
+
+/* =====================================================
+ * 접근성 — 동작 줄이기 (prefers-reduced-motion)
+ * grain-1: 애니메이션·전환을 거의 즉시로 압축한다.
+ * 1ms 값 사용 → animationend 이벤트가 정상 발화되어
+ * JS 삭제 로직(DOM 제거 + localStorage 갱신)이 유지된다.
+ * ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
 }

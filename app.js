@@ -1,6 +1,7 @@
 /* =====================================================
  * TODO LIST APP — Vanilla JS SPA
  * grain-3: CRUD + localStorage + 마이크로 인터랙션
+ * grain-1(하드닝): storageAvailable(), save() try-catch, 저장 불가 배너
  *
  * 패턴: 이벤트 위임(event delegation)
  * 의존성: 없음 (순수 Vanilla JS ES2015+)
@@ -22,6 +23,22 @@ let todos = [];
 
 // ── 영속성 ────────────────────────────────────────────
 
+/**
+ * localStorage 접근 가능 여부를 테스트-쓰기 후 삭제로 확인한다.
+ * Private Browsing(사파리 등) 또는 QuotaExceededError 발생 시 false 반환.
+ * @returns {boolean}
+ */
+function storageAvailable() {
+  try {
+    const testKey = '__todo_storage_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** localStorage → 파싱 실패 시 [] 반환 */
 function load() {
   try {
@@ -32,9 +49,24 @@ function load() {
   }
 }
 
-/** todos 배열 전체를 localStorage에 직렬화 저장 */
+/** todos 배열 전체를 localStorage에 직렬화 저장. 저장 실패 시 메모리 상태는 유지된다 */
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  } catch (e) {
+    // Private Browsing / QuotaExceededError — 메모리 상태는 유지되며 저장만 실패
+    console.warn('[todo] localStorage 저장 실패:', e);
+  }
+}
+
+/**
+ * 저장 불가 배너를 화면 상단에 한 번만 표시한다.
+ * 이미 표시된 경우(hidden이 false) 재호출해도 무시한다.
+ */
+function showStorageBanner() {
+  const banner = document.getElementById('storage-banner');
+  if (!banner || !banner.hidden) return;
+  banner.hidden = false;
 }
 
 // ── XSS 방어 ──────────────────────────────────────────
@@ -173,8 +205,11 @@ form.addEventListener('submit', e => {
 
 // ── 초기화 ────────────────────────────────────────────
 
-/** localStorage → 파싱 → 전체 렌더 */
+/** localStorage → 파싱 → 전체 렌더. 저장 불가 환경이면 배너를 먼저 표시한다 */
 function init() {
+  if (!storageAvailable()) {
+    showStorageBanner();
+  }
   todos = load();
   renderAll();
 }
