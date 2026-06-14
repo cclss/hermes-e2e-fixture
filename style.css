@@ -375,3 +375,47 @@ body {
   font-size: var(--font-size-md);
   line-height: var(--line-height-relaxed);
 }
+
+
+/* =====================================================
+ * TODO LIST APP — Micro-interaction Animations
+ * grain-3: 항목 추가·삭제·토글 애니메이션
+ * duration: --motion-duration-slow (350ms)
+ * easing:   decelerate (진입) / accelerate (퇴장)
+ * ===================================================== */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    max-height: 60px;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateX(20px);
+  }
+}
+
+/* 항목 추가 시 slide-in */
+.todo-item--entering {
+  animation: slideIn var(--motion-duration-slow) var(--motion-easing-decelerate) both;
+}
+
+/* 항목 삭제 시 fade-out (pointer-events 차단으로 중복 클릭 방지) */
+.todo-item--removing {
+  overflow: hidden;
+  animation: fadeOut var(--motion-duration-slow) var(--motion-easing-accelerate) both;
+  pointer-events: none;
+}
